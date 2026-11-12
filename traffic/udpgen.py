@@ -151,7 +151,7 @@ def summarize(samples, sent_total, received_bytes, first_rx, last_rx):
         "ipdv_ms_mean": round(sum(ipdv) / len(ipdv), 3) if ipdv else None,
         "ipdv_ms_p95": round(percentile(sorted(ipdv), 0.95), 3) if ipdv else None,
         "jitter_rfc3550_ms": round(jitter, 3) if ipdv else None,
-        "throughput_kbps": round(received_bytes * 8 / duration / 1000, 1) if duration else None,
+        "throughput_kbps": round(received_bytes * 8 / duration / 1000, 1) if duration else 0.0,
     }
 
 

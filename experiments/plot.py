@@ -3,7 +3,9 @@
 
 Lê results/<conjunto>/runs.csv e escreve, na mesma pasta:
   - summary.csv: média e intervalo de confiança de 95% de cada métrica;
-  - figures/<cenário>.pdf e .png: um gráfico por cenário.
+  - figures/<cenário>.pdf e .png: um gráfico por cenário. As barras de erro são
+    o intervalo de confiança de 95% ou, com menos de três repetições, o mínimo
+    e o máximo observados.
 
     python3 experiments/plot.py --set quick
 """
@@ -60,14 +62,31 @@ def mean_ci(values):
     return mean, T95.get(n - 1, 1.96) * deviation / math.sqrt(n)
 
 
+def whiskers(values, metric, scale):
+    """(média, erro inferior, erro superior), já na escala do gráfico.
+
+    Com três ou mais repetições, as barras de erro são o intervalo de confiança
+    de 95%; com menos, o intervalo de confiança não diz nada de útil e as barras
+    vão do mínimo ao máximo observados.
+    """
+    mean, ci = mean_ci(values)
+    if mean is None:
+        return None
+    low, high = (mean - ci, mean + ci) if len(values) >= 3 else (min(values), max(values))
+    low = max(low, 0.0)                    # nenhuma das métricas é negativa
+    if metric == "loss_ratio":
+        high = min(high, 1.0)
+    return mean * scale, (mean - low) * scale, (high - mean) * scale
+
+
 def x_values(data, experiment, flow, metric):
-    """Valores de x com dados, pela ordem natural (numérica quando possível)."""
-    seen = {key[2] for key, metrics in data.items()
-            if key[0] == experiment and key[3] == flow and metrics.get(metric)}
+    """Valores de x com dados: por ordem numérica ou, se forem nomes, pela da campanha."""
+    seen = list(dict.fromkeys(key[2] for key, metrics in data.items()
+                              if key[0] == experiment and key[3] == flow and metrics.get(metric)))
     try:
         return sorted(seen, key=float)
     except ValueError:
-        return sorted(seen)
+        return seen
 
 
 def profiles_of(data, experiment):
@@ -89,17 +108,18 @@ def style(ax, ylabel, xlabel):
 
 
 def lines(ax, data, experiment, flow, metric, scale=1.0):
-    """Uma linha por perfil, com barras de erro (IC 95%), sobre x categórico."""
+    """Uma linha por perfil, com barras de erro (ver whiskers), sobre x categórico."""
     xs = x_values(data, experiment, flow, metric)
     for profile in profiles_of(data, experiment):
         label, color, marker = PROFILES[profile]
-        points = [(i, *mean_ci(data[(experiment, profile, x, flow)][metric]))
-                  for i, x in enumerate(xs) if data.get((experiment, profile, x, flow))]
-        points = [(i, m * scale, ci * scale) for i, m, ci in points if m is not None]
+        points = [(i, whiskers(data.get((experiment, profile, x, flow), {}).get(metric, []),
+                               metric, scale)) for i, x in enumerate(xs)]
+        points = [(i, *w) for i, w in points if w is not None]
         if not points:
             continue
         ax.errorbar([p[0] for p in points], [p[1] for p in points],
-                    yerr=[p[2] for p in points], label=label, color=color, marker=marker,
+                    yerr=[[p[2] for p in points], [p[3] for p in points]],
+                    label=label, color=color, marker=marker,
                     linewidth=2, markersize=6.5, markeredgecolor="white", markeredgewidth=1,
                     capsize=2.5, elinewidth=1)
     ax.set_xticks(range(len(xs)))
@@ -107,21 +127,23 @@ def lines(ax, data, experiment, flow, metric, scale=1.0):
 
 
 def bars(ax, data, experiment, flow, metric, scale=1.0):
-    """Barras agrupadas por x, uma por perfil, com barras de erro (IC 95%)."""
+    """Barras agrupadas por x, uma por perfil, com barras de erro (ver whiskers)."""
     xs = x_values(data, experiment, flow, metric)
     profiles = profiles_of(data, experiment)
     width = 0.8 / max(1, len(profiles))
     for index, profile in enumerate(profiles):
         label, color, _ = PROFILES[profile]
         for i, x in enumerate(xs):
-            mean, ci = mean_ci(data.get((experiment, profile, x, flow), {}).get(metric, []))
-            if mean is None:
+            point = whiskers(data.get((experiment, profile, x, flow), {}).get(metric, []),
+                             metric, scale)
+            if point is None:
                 continue
+            mean, low, high = point
             position = i - 0.4 + width * (index + 0.5)
-            ax.bar(position, mean * scale, width * 0.9, yerr=ci * scale, color=color,
+            ax.bar(position, mean, width * 0.9, yerr=[[low], [high]], color=color,
                    label=label if i == 0 else None, capsize=2.5,
                    error_kw={"elinewidth": 1, "ecolor": INK})
-            ax.annotate(f"{mean * scale:.3g}", (position, mean * scale + ci * scale),
+            ax.annotate(f"{mean:.3g}", (position, mean + high),
                         textcoords="offset points", xytext=(0, 2), ha="center",
                         fontsize=7, color=INK)
     ax.set_xticks(range(len(xs)))
@@ -154,7 +176,8 @@ def outage_figure(out_dir, path):
     files = {profile: name for profile, name in files.items() if os.path.exists(name)}
     if not files:
         return
-    fig, axes = plt.subplots(1, len(files), figsize=(6.4, 2.6), squeeze=False)
+    # Mesma escala nos dois painéis, para a comparação ser direta.
+    fig, axes = plt.subplots(1, len(files), figsize=(6.4, 2.6), squeeze=False, sharey=True)
     for ax, (profile, name) in zip(axes.flat, files.items()):
         with open(name, newline="") as handle:
             rows = [(float(r["t_ms"]) / 1000, float(r["owd_ms"])) for r in csv.DictReader(handle)]
