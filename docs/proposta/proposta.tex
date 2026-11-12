@@ -1,0 +1,240 @@
+\documentclass[runningheads,a4paper]{llncs}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,fit,positioning}
+\usepackage{pgfgantt}
+
+\renewcommand{\keywordname}{{\bf Palavras-chave:}}
+\renewcommand{\andname}{e}
+\renewcommand{\lastandname}{\unskip\ e}
+\setlength{\tabcolsep}{4pt}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
+
+\begin{document}
+
+\title{Implementação de mecanismos de QoS usando VNFs\\{\large Proposta de trabalho --- TP3}}
+\titlerunning{QoS com VNFs --- Proposta (TP3)}
+
+\author{André Miguel Rego Trindade Pinto \and Diogo Fernandes Pinto \and\\ Francisco José Fidalgo Lage}
+\authorrunning{A. Pinto, D. Pinto e F. Lage}
+
+\institute{Grupo PL11 --- Qualidade de Serviço na Internet,\\ Universidade do Minho, Braga, Portugal\\
+\email{\{pg65400, pg65405, pg65407\}@alunos.uminho.pt}}
+
+\maketitle
+
+\begin{abstract}
+Propõe-se um sistema de QoS do tipo DiffServ, construído como uma cadeia de quatro
+funções de rede virtualizadas (VNFs) em contentores Docker sobre uma topologia emulada
+semelhante à de um ISP, e avaliado com tráfego VoIP, de vídeo e de dados em massa.
+\keywords{QoS \and NFV \and VNF \and DiffServ \and Cadeia de serviço}
+\end{abstract}
+
+\section{Objetivos e âmbito}
+
+O objetivo é conceber, implementar e avaliar uma cadeia de serviço de QoS totalmente
+virtualizada, na linha da arquitetura ETSI~NFV~\cite{etsi-nfv}. Cobrem-se os cinco
+aspetos de QoS do enunciado, e não apenas os três exigidos: \emph{classificação},
+\emph{controlo de acesso}, \emph{policiamento}, \emph{escalonamento} e
+\emph{monitorização}. Para o sistema ser simples de explicar e de reproduzir, cada VNF
+usa mecanismos nativos do \emph{kernel} Linux (\texttt{nftables} e \texttt{tc}) e todo
+o ambiente é criado por \emph{scripts} no repositório Git do grupo
+(\texttt{github.com/Daydream127/Qosi}).
+
+\section{Topologia e cadeia de serviço}
+
+A topologia (Fig.~\ref{fig:topo}) é emulada com Containernet~\cite{containernet}, uma
+extensão do Mininet~\cite{mininet} que permite usar contentores Docker como nós, dentro
+de uma máquina virtual Ubuntu (VirtualBox). Quatro clientes ligam-se a um
+comutador Open~vSwitch (s1); todo o tráfego atravessa a cadeia de VNFs antes de chegar
+ao encaminhador do núcleo (r1) e aos servidores. A ligação à saída da VNF3 é o
+\emph{gargalo} (10~Mbit/s), onde a contenção entre classes se torna visível; na ligação
+ao núcleo aplica-se \texttt{tc netem} para emular atraso, perdas e falhas.
+
+\begin{figure}[!t]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[font=\scriptsize, >=Latex,
+  host/.style={draw, rounded corners=1pt, minimum width=1.3cm, minimum height=0.42cm, inner sep=1pt},
+  sw/.style={draw, circle, inner sep=1.5pt, fill=gray!15},
+  vnf/.style={draw, thick, fill=blue!8, minimum width=1.35cm, minimum height=1.0cm, align=center, inner sep=1pt},
+  mgmt/.style={draw, fill=green!10, minimum height=0.5cm, inner sep=3pt, align=center}]
+  % clientes
+  \node[host] (hv) at (0,1.2) {h\_voip};
+  \node[host] (hd) at (0,0.4) {h\_video};
+  \node[host] (hb) at (0,-0.4) {h\_bulk};
+  \node[host, densely dashed] (hx) at (0,-1.2) {h\_x};
+  \node[above=1pt of hv, font=\scriptsize\itshape] {Clientes};
+  \node[sw] (s1) at (1.4,0) {s1};
+  % cadeia
+  \node[vnf] (c) at (2.9,0) {VNF1\\Classificador};
+  \node[vnf] (f) at (4.6,0) {VNF2\\Firewall};
+  \node[vnf] (p) at (6.3,0) {VNF3\\Policer/\\Escalonador};
+  \node[vnf] (m) at (9.3,0) {VNF4\\Monitor};
+  \node[draw, dashed, inner sep=5pt, fit=(c)(f)(p)(m),
+        label={[font=\scriptsize\itshape]above:Cadeia de serviço (contentores Docker)}] (chain) {};
+  % núcleo e servidores
+  \node[sw] (r1) at (11.6,0) {r1};
+  \node[sw] (s2) at (12.5,0) {s2};
+  \node[host] (sv) at (13.85,0.8) {srv\_voip};
+  \node[host] (sd) at (13.85,0) {srv\_video};
+  \node[host] (sb) at (13.85,-0.8) {srv\_bulk};
+  \node[above=1pt of sv, font=\scriptsize\itshape] {Servidores};
+  % ligações de dados
+  \foreach \h in {hv,hd,hb,hx} \draw (\h.east) -- (s1);
+  \draw[->] (s1) -- (c);
+  \draw[->] (c) -- (f);
+  \draw[->] (f) -- (p);
+  \draw[->, very thick] (p) -- node[above] {10 Mbit/s} node[below] {gargalo} (m);
+  \draw[->] (m) -- node[above, pos=0.66] {netem} (r1);
+  \draw (r1) -- (s2);
+  \foreach \s in {sv,sd,sb} \draw (s2) -- (\s.west);
+  % plano de gestão
+  \node[mgmt] (prom) at (6.0,-1.75) {Prometheus + Grafana (rede de gestão)};
+  \foreach \v in {c,f,p,m} \draw[dashed, ->, gray] (\v.south) -- (\v.south |- prom.north);
+\end{tikzpicture}}
+\caption{Topologia emulada e cadeia de serviço (h\_x é uma origem não autorizada).}
+\label{fig:topo}
+\end{figure}
+
+As VNFs são encadeadas em linha: cada contentor tem duas interfaces de dados e
+funciona como um salto IP, com encaminhamento estático definido pelo \emph{script} de
+topologia, que assume o papel de orquestrador. A ordem da cadeia e os parâmetros de
+cada VNF (Tabela~\ref{tab:vnfs}) ficam num ficheiro de configuração.
+
+\begin{table}[!ht]
+\caption{VNFs da cadeia, aspetos de QoS cobertos e ferramentas.}
+\label{tab:vnfs}
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}L{3.5cm} L{2.4cm} Y@{}}
+\toprule
+VNF e \emph{aspeto de QoS} & Ferramenta & Função \\
+\midrule
+1 Classificador\newline \emph{Classificação} & \texttt{nftables} &
+  Identifica fluxos por endereços, protocolo e portas; marca o DSCP. \\
+2 Firewall\newline \emph{Controlo de acesso} & \texttt{nftables} &
+  Política \emph{default-deny}: só admite origens e serviços autorizados. \\
+3 Policer/Escalonador\newline \emph{Policiamento, escalonamento} & \texttt{tc} (police, HTB) &
+  \emph{Token bucket} por classe; prioridade para EF e partilha ponderada entre AF31
+  e BE. \\
+4 Monitor\newline \emph{Monitorização} & Python, Prometheus, Grafana &
+  Contadores por classe (passivo) e sondas com n.º de sequência e estampilha temporal
+  (ativo). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Cenários de tráfego}
+
+O tráfego é sintético, gerado com \texttt{iperf3} e com um gerador de sondas próprio em
+Python. As classes e a marcação DSCP seguem o DiffServ~\cite{rfc2475} e o
+RFC~4594~\cite{rfc4594}; os objetivos de VoIP são os da classe~0 da
+Y.1541~\cite{y1541} (Tabela~\ref{tab:trafego}).
+
+\begin{table}[!ht]
+\caption{Classes de tráfego, perfis gerados e objetivos de QoS.}
+\label{tab:trafego}
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}l Y l Y@{}}
+\toprule
+Aplicação & Perfil gerado & DSCP & Objetivo \\
+\midrule
+VoIP (G.711) & UDP, 50~pacotes/s de 200~B ($\approx$80~kbit/s) & EF (46) &
+  IPTD $\le$ 100~ms, IPDV $\le$ 50~ms, IPLR $\le 10^{-3}$ \\
+Vídeo & \emph{Streaming} UDP de débito constante, 4~Mbit/s & AF31 (26) &
+  Débito sustentado, IPLR $\le 10^{-3}$ \\
+Dados em massa & TCP, 1 a $N$ fluxos sem limite de débito & BE (0) &
+  Sem garantias; usa a capacidade restante \\
+Não autorizado & UDP a partir de h\_x & --- & Bloqueado na VNF2 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Metodologia de avaliação}
+
+Por classe, medem-se as métricas \emph{one-way} estudadas na UC: atraso (OWD ou IPTD),
+variação do atraso (IPDV), perdas (IPLR) e débito. Como todos os nós emulados partilham
+o relógio da máquina, o atraso num só sentido é medido sem erro de sincronização. Para
+VoIP estima-se ainda o MOS a partir do atraso e das perdas, com o modelo~E
+simplificado~\cite{cole}.
+
+Comparam-se quatro configurações: (i)~sem QoS, com as VNFs em modo de passagem;
+(ii)~classificação e escalonamento; (iii)~com policiamento; (iv)~cadeia completa, com
+tráfego não autorizado. Em cada uma varia-se a carga (número de fluxos TCP e débito de
+vídeo) e as condições da ligação ao núcleo (atraso, perdas e falha temporária). Cada
+cenário é repetido cinco vezes durante 60~s, reportando-se médias com intervalos de
+confiança de 95\%. Um único comando lança a campanha e produz os CSV e os gráficos. Na
+otimização ajustam-se os \emph{token buckets} e os pesos das filas, documentando os
+compromissos e a sobrecarga da cadeia.
+
+\section{Planeamento}
+
+O plano (Fig.~\ref{fig:gantt}) segue as quatro fases e os três marcos do enunciado.
+
+\begin{figure}[!ht]
+\centering
+\begin{ganttchart}[
+  x unit=0.5cm, y unit chart=0.3cm, y unit title=0.4cm,
+  title height=1, bar height=0.55, group height=0.25, group peaks height=0.15,
+  title label font=\scriptsize\bfseries,
+  bar label font=\scriptsize,
+  group label font=\scriptsize\bfseries,
+  group label node/.append style={xshift=-3pt},
+  milestone label font=\scriptsize\itshape,
+  bar/.append style={fill=blue!25},
+  milestone/.append style={fill=red!70},
+  vgrid={*1{draw=none}, *1{dotted}}
+]{1}{14}
+\gantttitle{S1}{2}\gantttitle{S2}{2}\gantttitle{S3}{2}\gantttitle{S4}{2}%
+\gantttitle{S5}{2}\gantttitle{S6}{2}\gantttitle{S7}{2}\\
+\ganttgroup{Fase 1: ambiente e plano}{1}{6}\\
+\ganttbar{Estudo do enunciado e das ferramentas}{1}{4}\\
+\ganttbar{Arquitetura, VM e topologia base}{5}{6}\\
+\ganttmilestone{M1: proposta (13 de novembro)}{6}\\
+\ganttgroup{Fase 2: VNFs isoladas}{7}{9}\\
+\ganttbar{VNF1 Classificador e VNF2 Firewall}{7}{7}\\
+\ganttbar{VNF3 Policer/Escalonador}{7}{8}\\
+\ganttbar{VNF4 Monitor e geradores de tráfego}{8}{9}\\
+\ganttgroup{Fase 3: integração e otimização}{9}{12}\\
+\ganttbar{Integração da cadeia e primeiros testes}{9}{10}\\
+\ganttmilestone{M2: relatório de progresso (fim de S5)}{10}\\
+\ganttbar{Congestionamento, falhas e otimização}{11}{12}\\
+\ganttgroup{Fase 4: análise e relatório}{12}{14}\\
+\ganttbar{Campanha de experiências e gráficos}{12}{13}\\
+\ganttbar{Relatório final e demonstração}{13}{14}\\
+\ganttmilestone{M3: entrega final (fim de S7)}{14}
+\end{ganttchart}
+\caption{Planeamento por semanas (S1 a S7) e marcos de entrega.}
+\label{fig:gantt}
+\end{figure}
+
+\begin{thebibliography}{8}
+\bibitem{etsi-nfv} ETSI: Network Functions Virtualisation (NFV); Architectural
+Framework. ETSI GS NFV 002 V1.2.1 (2014)
+\bibitem{containernet} Peuster, M., Karl, H., van Rossem, S.: MeDICINE: Rapid prototyping
+of production-ready network services in multi-PoP environments. In: IEEE NFV-SDN (2016)
+\bibitem{mininet} Lantz, B., Heller, B., McKeown, N.: A network in a laptop: rapid
+prototyping for software-defined networks. In: ACM HotNets-IX (2010)
+\bibitem{rfc2475} Blake, S., et al.: An Architecture for Differentiated Services.
+RFC 2475, IETF (1998)
+\bibitem{rfc4594} Babiarz, J., Chan, K., Baker, F.: Configuration Guidelines for DiffServ
+Service Classes. RFC 4594, IETF (2006)
+\bibitem{y1541} ITU-T: Network performance objectives for IP-based services.
+Recommendation Y.1541 (2011)
+\bibitem{cole} Cole, R.G., Rosenbluth, J.H.: Voice over IP performance monitoring.
+ACM SIGCOMM Computer Communication Review \textbf{31}(2), 9--24 (2001)
+\end{thebibliography}
+
+\end{document}

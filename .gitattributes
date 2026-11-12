@@ -1,0 +1,8 @@
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+*.tex text eol=lf
+Vagrantfile text eol=lf
+Makefile text eol=lf
+*.pdf binary
+*.png binary
