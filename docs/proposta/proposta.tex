@@ -1,4 +1,4 @@
-\documentclass[runningheads,a4paper]{llncs}
+\documentclass[a4paper]{llncs}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[portuguese]{babel}
@@ -13,6 +13,8 @@
 \renewcommand{\keywordname}{{\bf Palavras-chave:}}
 \renewcommand{\andname}{e}
 \renewcommand{\lastandname}{\unskip\ e}
+% Sem cabeçalhos corridos; apenas o número de página no rodapé.
+\pagestyle{plain}
 \setlength{\tabcolsep}{4pt}
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
@@ -22,11 +24,9 @@
 
 \begin{document}
 
-\title{Implementação de mecanismos de QoS usando VNFs\\{\large Proposta de trabalho --- TP3}}
-\titlerunning{QoS com VNFs --- Proposta (TP3)}
+\title{Implementação de mecanismos de QoS\\ usando VNFs\\{\large Proposta de trabalho --- TP3}}
 
 \author{André Miguel Rego Trindade Pinto \and Diogo Fernandes Pinto \and\\ Francisco José Fidalgo Lage}
-\authorrunning{A. Pinto, D. Pinto e F. Lage}
 
 \institute{Grupo PL11 --- Qualidade de Serviço na Internet,\\ Universidade do Minho, Braga, Portugal\\
 \email{\{pg65400, pg65405, pg65407\}@alunos.uminho.pt}}
@@ -45,7 +45,7 @@ semelhante à de um ISP, e avaliado com tráfego VoIP, de vídeo e de dados em m
 O objetivo é conceber, implementar e avaliar uma cadeia de serviço de QoS totalmente
 virtualizada, na linha da arquitetura ETSI~NFV~\cite{etsi-nfv}. Cobrem-se os cinco
 aspetos de QoS do enunciado, e não apenas os três exigidos: \emph{classificação},
-\emph{controlo de acesso}, \emph{policiamento}, \emph{escalonamento} e
+\emph{controlo de acesso}, \emph{policiamento}, \emph{agendamento} e
 \emph{monitorização}. Para o sistema ser simples de explicar e de reproduzir, cada VNF
 usa mecanismos nativos do \emph{kernel} Linux (\texttt{nftables} e \texttt{tc}) e todo
 o ambiente é criado por \emph{scripts} no repositório Git do grupo
@@ -79,7 +79,7 @@ ao núcleo aplica-se \texttt{tc netem} para emular atraso, perdas e falhas.
   % cadeia
   \node[vnf] (c) at (2.9,0) {VNF1\\Classificador};
   \node[vnf] (f) at (4.6,0) {VNF2\\Firewall};
-  \node[vnf] (p) at (6.3,0) {VNF3\\Policer/\\Escalonador};
+  \node[vnf] (p) at (6.3,0) {VNF3\\Policer/\\Scheduler};
   \node[vnf] (m) at (9.3,0) {VNF4\\Monitor};
   \node[draw, dashed, inner sep=5pt, fit=(c)(f)(p)(m),
         label={[font=\scriptsize\itshape]above:Cadeia de serviço (contentores Docker)}] (chain) {};
@@ -100,7 +100,7 @@ ao núcleo aplica-se \texttt{tc netem} para emular atraso, perdas e falhas.
   \draw (r1) -- (s2);
   \foreach \s in {sv,sd,sb} \draw (s2) -- (\s.west);
   % plano de gestão
-  \node[mgmt] (prom) at (6.0,-1.75) {Prometheus + Grafana (rede de gestão)};
+  \node[mgmt, minimum width=8.3cm] (prom) at (6.1,-1.75) {Prometheus + Grafana (rede de gestão)};
   \foreach \v in {c,f,p,m} \draw[dashed, ->, gray] (\v.south) -- (\v.south |- prom.north);
 \end{tikzpicture}}
 \caption{Topologia emulada e cadeia de serviço (h\_x é uma origem não autorizada).}
@@ -117,17 +117,19 @@ cada VNF (Tabela~\ref{tab:vnfs}) ficam num ficheiro de configuração.
 \label{tab:vnfs}
 \centering
 \footnotesize
-\begin{tabularx}{\textwidth}{@{}L{3.5cm} L{2.4cm} Y@{}}
+\begin{tabularx}{\textwidth}{@{}L{4.1cm} L{2.5cm} Y@{}}
 \toprule
 VNF e \emph{aspeto de QoS} & Ferramenta & Função \\
 \midrule
 1 Classificador\newline \emph{Classificação} & \texttt{nftables} &
   Identifica fluxos por endereços, protocolo e portas; marca o DSCP. \\
+\addlinespace[2pt]
 2 Firewall\newline \emph{Controlo de acesso} & \texttt{nftables} &
   Política \emph{default-deny}: só admite origens e serviços autorizados. \\
-3 Policer/Escalonador\newline \emph{Policiamento, escalonamento} & \texttt{tc} (police, HTB) &
-  \emph{Token bucket} por classe; prioridade para EF e partilha ponderada entre AF31
-  e BE. \\
+\addlinespace[2pt]
+3 Policer/Scheduler\newline \emph{Policiamento, agendamento} & \texttt{tc} (police, HTB) &
+  \emph{Token bucket} por classe; prioridade para EF, pesos para AF31 e BE. \\
+\addlinespace[2pt]
 4 Monitor\newline \emph{Monitorização} & Python, Prometheus, Grafana &
   Contadores por classe (passivo) e sondas com n.º de sequência e estampilha temporal
   (ativo). \\
@@ -171,7 +173,7 @@ VoIP estima-se ainda o MOS a partir do atraso e das perdas, com o modelo~E
 simplificado~\cite{cole}.
 
 Comparam-se quatro configurações: (i)~sem QoS, com as VNFs em modo de passagem;
-(ii)~classificação e escalonamento; (iii)~com policiamento; (iv)~cadeia completa, com
+(ii)~só classificação e agendamento; (iii)~com policiamento; (iv)~cadeia completa, com
 tráfego não autorizado. Em cada uma varia-se a carga (número de fluxos TCP e débito de
 vídeo) e as condições da ligação ao núcleo (atraso, perdas e falha temporária). Cada
 cenário é repetido cinco vezes durante 60~s, reportando-se médias com intervalos de
@@ -205,7 +207,7 @@ O plano (Fig.~\ref{fig:gantt}) segue as quatro fases e os três marcos do enunci
 \ganttmilestone{M1: proposta (13 de novembro)}{6}\\
 \ganttgroup{Fase 2: VNFs isoladas}{7}{9}\\
 \ganttbar{VNF1 Classificador e VNF2 Firewall}{7}{7}\\
-\ganttbar{VNF3 Policer/Escalonador}{7}{8}\\
+\ganttbar{VNF3 Policer/Scheduler}{7}{8}\\
 \ganttbar{VNF4 Monitor e geradores de tráfego}{8}{9}\\
 \ganttgroup{Fase 3: integração e otimização}{9}{12}\\
 \ganttbar{Integração da cadeia e primeiros testes}{9}{10}\\

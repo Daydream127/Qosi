@@ -8,7 +8,7 @@ Uma cadeia de quatro funções de rede virtualizadas (VNFs), em contentores Dock
 |---|---|---|
 | 1. Classificador | Classificação e marcação DSCP | nftables |
 | 2. Firewall | Controlo de acesso | nftables |
-| 3. Policer/Escalonador | Policiamento e escalonamento | tc (police, HTB) |
+| 3. Policer/Scheduler | Policiamento e agendamento | tc (police, HTB) |
 | 4. Monitor | Monitorização | Python, Prometheus, Grafana |
 
 ## Ambiente
