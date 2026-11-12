@@ -55,7 +55,7 @@ o ambiente é criado por \emph{scripts} no repositório Git do grupo
 
 A topologia (Fig.~\ref{fig:topo}) é emulada com Containernet~\cite{containernet}, uma
 extensão do Mininet~\cite{mininet} que permite usar contentores Docker como nós, dentro
-de uma máquina virtual Ubuntu (VirtualBox). Quatro clientes ligam-se a um
+de uma máquina virtual Ubuntu~22.04. Quatro clientes ligam-se a um
 comutador Open~vSwitch (s1); todo o tráfego atravessa a cadeia de VNFs antes de chegar
 ao encaminhador do núcleo (r1) e aos servidores. A ligação à saída da VNF3 é o
 \emph{gargalo} (10~Mbit/s), onde a contenção entre classes se torna visível; na ligação
