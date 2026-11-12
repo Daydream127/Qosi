@@ -6,7 +6,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y --no-install-recommends \
   git curl ca-certificates make \
-  python3 python3-pip python3-venv \
+  python3 python3-pip python3-venv python3-matplotlib \
   iproute2 iputils-ping traceroute tcpdump nftables \
   iperf3 ansible
 

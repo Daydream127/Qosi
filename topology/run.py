@@ -34,7 +34,8 @@ def demo(qos, duration):
         r = flow.result()
         print(f"{name:6} OWD média {r['owd_ms_mean']} ms, p95 {r['owd_ms_p95']} ms, "
               f"IPDV média {r['ipdv_ms_mean']} ms, perdas {r['loss_ratio']:.2%}, "
-              f"débito {r['throughput_kbps']} kbit/s")
+              f"débito {r['throughput_kbps']} kbit/s, "
+              f"maior intervalo entre chegadas {r['rx_gap_ms_max']} ms")
     print(f"TCP    débito {bulk.result()['throughput_kbps']} kbit/s")
 
 

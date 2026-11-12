@@ -5,6 +5,7 @@ correr vários ao mesmo tempo; os resultados são lidos no fim com result().
 """
 import itertools
 import json
+import subprocess
 import time
 
 _ids = itertools.count(1)
@@ -12,18 +13,23 @@ _ids = itertools.count(1)
 # Perfis de tráfego da proposta (payload UDP; os 28 bytes de IP+UDP somam-se).
 VOIP = {"port": 5004, "pps": 50, "size": 172}      # 200 B por pacote, 80 kbit/s
 VIDEO = {"port": 5006, "pps": 400, "size": 1222}   # 1250 B por pacote, 4 Mbit/s
+BE_PROBE = {"port": 5008, "pps": 20, "size": 172}  # sonda na classe best effort
 BULK_PORT = 5201
+FLOOD_PORT = 5009                                  # tráfego não autorizado de h_x
 
 
 class UdpFlow:
     """Fluxo UDP de débito constante, medido pelo udpgen no destino."""
 
-    def __init__(self, qos, client, server, port, pps, size, duration):
+    def __init__(self, qos, client, server, port, pps, size, duration, packets=False):
         self.qos, self.duration = qos, duration
         self.server = qos[server]
         self.rx_file = f"/tmp/udp-rx-{next(_ids)}.json"
         self.tx_file = self.rx_file.replace("rx", "tx")
-        self.server.cmd(f"udpgen recv --port {port} --duration {duration + 3} "
+        # Com packets=True, o recetor guarda também uma linha por pacote.
+        self.packets_file = self.rx_file.replace(".json", ".csv") if packets else None
+        csv_option = f"--csv {self.packets_file} " if packets else ""
+        self.server.cmd(f"udpgen recv --port {port} --duration {duration + 3} {csv_option}"
                         f"--json {self.rx_file} >/dev/null 2>&1 &")
         time.sleep(0.3)  # dá tempo ao recetor para abrir a porta
         self.client = qos[client]
@@ -42,7 +48,12 @@ class UdpFlow:
             received["sent"] = sent["sent"]
             received["lost"] = sent["sent"] - received["received"]
             received["loss_ratio"] = round(received["lost"] / sent["sent"], 6)
-        return received
+        return received or {}
+
+    def save_packets(self, path):
+        """Copia para fora do contentor as amostras por pacote (seq, t_ms, owd_ms)."""
+        subprocess.run(["docker", "cp", f"mn.{self.server.name}:{self.packets_file}", path],
+                       check=False, capture_output=True)
 
 
 class TcpFlow:
@@ -62,6 +73,12 @@ class TcpFlow:
         wait = self.started + self.duration + 2.5 - time.monotonic()
         if wait > 0:
             time.sleep(wait)
+        # O iperf3 só escreve o resultado ao terminar e, a débitos muito altos ou
+        # depois de uma falha da ligação, pode demorar mais uns segundos a fechar.
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline and \
+                "RUNNING" in self.client.cmd("pgrep -x iperf3 >/dev/null && echo RUNNING"):
+            time.sleep(0.5)
         data = _read_json(self.client, self.file) or {}
         end = data.get("end", {})
         received = end.get("sum_received", {})

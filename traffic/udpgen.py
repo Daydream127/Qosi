@@ -5,7 +5,9 @@ Cada pacote leva um número de sequência e uma estampilha temporal de envio, o
 que permite ao recetor calcular as métricas one-way:
 
   - OWD/IPTD: atraso num sentido (receção - envio). É válido porque todos os
-    nós emulados partilham o relógio da máquina.
+    nós emulados partilham o relógio da máquina. Usa-se o relógio monotónico
+    (CLOCK_MONOTONIC), que é comum a todos os contentores e, ao contrário do
+    relógio de parede, não dá saltos quando o sistema acerta a hora.
   - IPDV: variação do atraso entre pacotes consecutivos (RFC 3393) e o jitter
     suavizado do RFC 3550.
   - IPLR: razão de perdas, a partir dos números de sequência em falta.
@@ -52,7 +54,7 @@ def send(args):
             time.sleep(remaining - 0.0005)
         while time.perf_counter() < target:
             pass
-        sock.sendto(HEADER.pack(seq, time.time_ns()) + padding, dst)
+        sock.sendto(HEADER.pack(seq, time.monotonic_ns()) + padding, dst)
 
     elapsed = time.perf_counter() - start
     for _ in range(5):  # o fim é repetido porque também se pode perder
@@ -74,6 +76,8 @@ def receive(args):
     signal.signal(signal.SIGINT, lambda *_: stop.update(flag=True))
 
     samples = []  # (seq, atraso em ms)
+    sent_at = []  # instante de envio de cada amostra (ns), para o CSV por pacote
+    max_gap_ns = 0  # maior intervalo entre chegadas: denuncia pausas na medição
     sent_total = None
     received_bytes = 0
     first_rx = last_rx = None
@@ -87,7 +91,7 @@ def receive(args):
             data, _ = sock.recvfrom(65535)
         except socket.timeout:
             continue
-        now_ns = time.time_ns()
+        now_ns = time.monotonic_ns()
         if len(data) < HEADER.size:
             continue
         seq, value = HEADER.unpack_from(data)
@@ -97,19 +101,25 @@ def receive(args):
                 fin_deadline = time.monotonic() + 0.3
             continue
         samples.append((seq, (now_ns - value) / 1e6))
+        sent_at.append(value)
         received_bytes += len(data) + IP_UDP_OVERHEAD
         first_rx = first_rx or now_ns
+        if last_rx is not None:
+            max_gap_ns = max(max_gap_ns, now_ns - last_rx)
         last_rx = now_ns
 
     summary = summarize(samples, sent_total, received_bytes, first_rx, last_rx)
+    summary["rx_gap_ms_max"] = round(max_gap_ns / 1e6, 3)
     text = json.dumps(summary)
     if args.json:
         with open(args.json, "w") as handle:
             handle.write(text + "\n")
     if args.csv:
         with open(args.csv, "w") as handle:
-            handle.write("seq,owd_ms\n")
-            handle.writelines(f"{seq},{owd:.3f}\n" for seq, owd in samples)
+            # t_ms: instante de envio, contado a partir do primeiro pacote recebido.
+            handle.write("seq,t_ms,owd_ms\n")
+            handle.writelines(f"{seq},{(sent - sent_at[0]) / 1e6:.3f},{owd:.3f}\n"
+                              for (seq, owd), sent in zip(samples, sent_at))
     print(text)
 
 
@@ -134,6 +144,7 @@ def summarize(samples, sent_total, received_bytes, first_rx, last_rx):
         "loss_ratio": round(lost / sent_total, 6) if sent_total else None,
         "owd_ms_mean": round(sum(delays) / len(delays), 3) if delays else None,
         "owd_ms_min": round(ordered[0], 3) if delays else None,
+        "owd_ms_p50": round(percentile(ordered, 0.50), 3) if delays else None,
         "owd_ms_p95": round(percentile(ordered, 0.95), 3) if delays else None,
         "owd_ms_p99": round(percentile(ordered, 0.99), 3) if delays else None,
         "owd_ms_max": round(ordered[-1], 3) if delays else None,

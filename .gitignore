@@ -27,3 +27,6 @@ monitoring/targets/
 
 # Resultados temporários
 *.log
+
+# Resultados de ensaio da campanha
+results/smoke/

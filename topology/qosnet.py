@@ -17,7 +17,7 @@ import yaml
 # A ordem importa: mininet.net tem de ser importado antes de mininet.link.
 from mininet.net import Containernet  # isort: skip
 from mininet.node import OVSSwitch  # isort: skip
-from mininet.link import Link, TCLink  # isort: skip
+from mininet.link import Link  # isort: skip
 from mininet.log import info  # isort: skip
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -92,11 +92,8 @@ class QosNet:
 
         for index, (left, right) in enumerate(zip(path, path[1:])):
             left_ip, right_ip = f"10.0.{10 + index}.1", f"10.0.{10 + index}.2"
-            is_core_link = right is r1  # a ligação ao núcleo leva netem
-            net.addLink(left, right,
-                        cls=TCLink if is_core_link else Link,
-                        intfName1=f"{left.name}-out", intfName2=f"{right.name}-in",
-                        **({"delay": cfg["core"]["delay"]} if is_core_link else {}))
+            net.addLink(left, right, cls=Link,
+                        intfName1=f"{left.name}-out", intfName2=f"{right.name}-in")
             self.addresses.append((left, f"{left.name}-out", f"{left_ip}/30"))
             self.addresses.append((right, f"{right.name}-in", f"{right_ip}/30"))
             # Rotas estáticas: clientes para trás, servidores para a frente.
@@ -121,8 +118,21 @@ class QosNet:
             vnf.cmd(f"VNF_NAME={vnf.name} EXPORTER_PORT={EXPORTER_PORT} "
                     "nohup python3 /vnf/exporter.py >/var/log/exporter.log 2>&1 &")
         self.write_prometheus_targets()
-        self.apply_profile(profile)
+        self.set_core()
+        if profile:
+            self.apply_profile(profile)
         return self
+
+    def set_core(self, delay=None, loss=0):
+        """Condições do núcleo (netem em r1, nos dois sentidos): atraso e perdas.
+
+        delay é uma duração do tc (ex.: '20ms'); loss é uma percentagem. Uma
+        falha da ligação emula-se com loss=100.
+        """
+        delay = delay or self.config["core"]["delay"]
+        for intf in ("r1-out", "r1-in"):
+            self["r1"].cmd(f"tc qdisc replace dev {intf} root netem delay {delay} "
+                           f"loss {loss}% limit 1000")
 
     def write_prometheus_targets(self):
         """Diz ao Prometheus onde estão os exportadores das VNFs."""
@@ -137,10 +147,17 @@ class QosNet:
             self.net.stop()
 
     # --------------------------------------------------------------- profiles
-    def apply_profile(self, profile):
-        """(Re)configura todas as VNFs com as variáveis do perfil indicado."""
+    def apply_profile(self, profile, extra=None):
+        """(Re)configura todas as VNFs com as variáveis do perfil indicado.
+
+        extra permite alterar mais variáveis por cima do perfil: {vnf: {VAR: valor}}.
+        """
         info(f"*** perfil '{profile}'\n")
-        self.configure(self.config["profiles"][profile] or {})
+        overrides = {name: dict(env) for name, env in
+                     (self.config["profiles"][profile] or {}).items()}
+        for name, env in (extra or {}).items():
+            overrides.setdefault(name, {}).update(env)
+        self.configure(overrides)
         self.profile = profile
 
     def configure(self, overrides):

@@ -9,3 +9,5 @@ Makefile text eol=lf
 vnfs/*/start text eol=lf
 Dockerfile text eol=lf
 *.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
