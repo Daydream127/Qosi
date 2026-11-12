@@ -12,14 +12,14 @@ mkdir -p targets
 
 docker rm -f qosi-prometheus qosi-grafana >/dev/null 2>&1 || true
 
-docker run -d --name qosi-prometheus --network host \
+docker run -d --name qosi-prometheus --network host --restart unless-stopped \
   -v "$PWD/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
   -v "$PWD/targets:/etc/prometheus/targets:ro" \
   prom/prometheus:v2.53.0 \
   --config.file=/etc/prometheus/prometheus.yml \
   --storage.tsdb.retention.time=2d >/dev/null
 
-docker run -d --name qosi-grafana --network host \
+docker run -d --name qosi-grafana --network host --restart unless-stopped \
   -e GF_AUTH_ANONYMOUS_ENABLED=true \
   -e GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer \
   -e GF_AUTH_DISABLE_LOGIN_FORM=true \

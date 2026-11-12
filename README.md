@@ -35,6 +35,8 @@ Dentro dela, ativar o systemd em `/etc/wsl.conf` (`[boot]` seguido de `systemd=t
 sudo bash scripts/provision-all.sh
 ```
 
+O WSL2 desliga a distribuição ao fim de algum tempo sem uso. O Prometheus e o Grafana voltam a arrancar sozinhos quando ela é reaberta; a topologia tem de ser lançada de novo.
+
 ### Opção B: máquina virtual com Vagrant e VirtualBox
 
 ```bash
