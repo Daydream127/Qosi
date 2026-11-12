@@ -1,0 +1,34 @@
+#!/bin/bash
+# VNF4 - Monitor: sonda passiva no fim da cadeia.
+#
+# Conta os pacotes e os bytes de cada classe DiffServ que saem da cadeia em
+# direção ao núcleo. Os contadores são lidos pelo exportador (porta 9100) e
+# recolhidos pelo Prometheus.
+#
+# Variáveis de ambiente:
+#   ENABLED   1 ativa os contadores; 0 deixa a VNF em modo de passagem
+#   IN_IF     interface de entrada (lado dos clientes)
+set -eu
+
+nft delete table ip probe 2>/dev/null || true
+
+if [ "${ENABLED:-1}" != "1" ]; then
+  echo "monitor: modo de passagem"
+  exit 0
+fi
+
+nft -f - <<EOF
+table ip probe {
+  counter class_ef   { }
+  counter class_af31 { }
+  counter class_be   { }
+
+  chain forward {
+    type filter hook forward priority filter; policy accept;
+    iifname "${IN_IF}" ip dscp ef   counter name class_ef   accept
+    iifname "${IN_IF}" ip dscp af31 counter name class_af31 accept
+    iifname "${IN_IF}" counter name class_be
+  }
+}
+EOF
+echo "monitor: ativo (contadores por classe em ${IN_IF})"

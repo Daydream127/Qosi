@@ -1,0 +1,12 @@
+# Prometheus: recolhe as métricas dos exportadores das VNFs de segundo a segundo.
+# A lista de alvos (targets/vnfs.json) é escrita pela topologia ao arrancar,
+# com os endereços das VNFs na rede de gestão.
+global:
+  scrape_interval: 1s
+  scrape_timeout: 900ms
+
+scrape_configs:
+  - job_name: vnfs
+    file_sd_configs:
+      - files: ["/etc/prometheus/targets/*.json"]
+        refresh_interval: 5s

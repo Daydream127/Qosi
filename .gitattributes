@@ -6,3 +6,6 @@ Vagrantfile text eol=lf
 Makefile text eol=lf
 *.pdf binary
 *.png binary
+vnfs/*/start text eol=lf
+Dockerfile text eol=lf
+*.yaml text eol=lf

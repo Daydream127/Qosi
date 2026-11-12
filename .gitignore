@@ -21,3 +21,9 @@ __pycache__/
 
 # Claude Code
 .claude/
+
+# Gerado ao arrancar a topologia
+monitoring/targets/
+
+# Resultados temporários
+*.log

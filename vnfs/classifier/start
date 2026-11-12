@@ -1,0 +1,34 @@
+#!/bin/bash
+# VNF1 - Classificador: identifica os fluxos e marca o campo DSCP (DiffServ).
+#
+# Variáveis de ambiente:
+#   ENABLED      1 aplica as regras; 0 deixa a VNF em modo de passagem
+#   SERVER_NET   rede dos servidores (destino do tráfego a classificar)
+#   VOIP_PORT    porta UDP do tráfego VoIP   -> EF   (DSCP 46)
+#   VIDEO_PORT   porta UDP do vídeo          -> AF31 (DSCP 26)
+# Todo o restante tráfego é remarcado como best effort (DSCP 0): na fronteira
+# de um domínio DiffServ não se confia na marcação feita pelos clientes.
+set -eu
+
+nft delete table ip classifier 2>/dev/null || true
+
+if [ "${ENABLED:-1}" != "1" ]; then
+  echo "classifier: modo de passagem"
+  exit 0
+fi
+
+nft -f - <<EOF
+table ip classifier {
+  counter voip  { }
+  counter video { }
+  counter other { }
+
+  chain classify {
+    type filter hook forward priority mangle; policy accept;
+    ip daddr ${SERVER_NET} udp dport ${VOIP_PORT}  counter name voip  ip dscp set ef   accept
+    ip daddr ${SERVER_NET} udp dport ${VIDEO_PORT} counter name video ip dscp set af31 accept
+    counter name other ip dscp set cs0
+  }
+}
+EOF
+echo "classifier: ativo (UDP ${VOIP_PORT} -> EF, UDP ${VIDEO_PORT} -> AF31, resto -> BE)"

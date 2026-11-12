@@ -1,0 +1,71 @@
+# Configuração da topologia e da cadeia de serviço.
+#
+# A cadeia é construída pela ordem da lista "chain": para trocar a ordem das
+# VNFs, ou tirar uma, basta editar este ficheiro. As variáveis em "env" são
+# passadas ao script /vnf/start de cada VNF (ver vnfs/<nome>/start).
+
+networks:
+  clients: 10.0.1.0/24
+  servers: 10.0.2.0/24
+
+clients:
+  h_voip: 10.0.1.11
+  h_video: 10.0.1.12
+  h_bulk: 10.0.1.13
+  h_x: 10.0.1.66        # origem não autorizada
+
+servers:
+  srv_voip: 10.0.2.11
+  srv_video: 10.0.2.12
+  srv_bulk: 10.0.2.13
+
+core:
+  delay: 5ms            # atraso (netem) da ligação ao núcleo, em cada sentido
+
+chain:
+  - name: vnf1
+    image: qosi/classifier
+    env:
+      SERVER_NET: 10.0.2.0/24
+      VOIP_PORT: 5004
+      VIDEO_PORT: 5006
+
+  - name: vnf2
+    image: qosi/firewall
+    env:
+      ALLOWED_CLIENTS: "10.0.1.11, 10.0.1.12, 10.0.1.13"
+      SERVER_NET: 10.0.2.0/24
+      UDP_PORTS: "5004, 5006"
+      TCP_PORTS: "5201"
+
+  - name: vnf3
+    image: qosi/qos
+    env:
+      LINK_RATE: 10mbit     # capacidade do gargalo
+      QUEUE_PKTS: 100
+      EF_RATE: 1mbit        # garantido e máximo para EF (prioridade máxima)
+      AF_RATE: 5mbit        # garantido para AF31
+      BE_RATE: 4mbit        # garantido para BE
+      EF_POLICE_RATE: 200kbit
+      EF_POLICE_BURST: 10k
+      AF_POLICE_RATE: 5mbit
+      AF_POLICE_BURST: 100k
+
+  - name: vnf4
+    image: qosi/monitor
+    env: {}
+
+# Perfis de teste: alterações às variáveis de cada VNF em relação ao que está
+# definido acima. Por omissão, todas as VNFs estão ativas (perfil "full").
+profiles:
+  baseline:             # sem QoS: VNFs em modo de passagem, fila FIFO no gargalo
+    vnf1: {ENABLED: 0}
+    vnf2: {ENABLED: 0}
+    vnf3: {SCHEDULING: 0, POLICING: 0}
+  sched:                # classificação e agendamento
+    vnf2: {ENABLED: 0}
+    vnf3: {SCHEDULING: 1, POLICING: 0}
+  police:               # classificação, agendamento e policiamento
+    vnf2: {ENABLED: 0}
+    vnf3: {SCHEDULING: 1, POLICING: 1}
+  full: {}              # cadeia completa, incluindo a firewall

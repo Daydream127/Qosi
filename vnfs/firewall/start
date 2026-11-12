@@ -1,0 +1,39 @@
+#!/bin/bash
+# VNF2 - Firewall: controlo de acesso com política default-deny.
+#
+# Variáveis de ambiente:
+#   ENABLED          1 aplica as regras; 0 deixa a VNF em modo de passagem
+#   ALLOWED_CLIENTS  endereços dos clientes autorizados, separados por vírgulas
+#   SERVER_NET       rede dos servidores
+#   UDP_PORTS        portas UDP permitidas, separadas por vírgulas
+#   TCP_PORTS        portas TCP permitidas, separadas por vírgulas
+set -eu
+
+nft delete table ip firewall 2>/dev/null || true
+
+if [ "${ENABLED:-1}" != "1" ]; then
+  echo "firewall: modo de passagem"
+  exit 0
+fi
+
+nft -f - <<EOF
+table ip firewall {
+  counter allowed { }
+  counter dropped { }
+
+  set clients {
+    type ipv4_addr
+    elements = { ${ALLOWED_CLIENTS} }
+  }
+
+  chain forward {
+    type filter hook forward priority filter; policy drop;
+    ct state established,related counter name allowed accept
+    ip saddr @clients ip daddr ${SERVER_NET} udp dport { ${UDP_PORTS} } counter name allowed accept
+    ip saddr @clients ip daddr ${SERVER_NET} tcp dport { ${TCP_PORTS} } counter name allowed accept
+    ip saddr @clients ip daddr ${SERVER_NET} icmp type echo-request counter name allowed accept
+    counter name dropped drop
+  }
+}
+EOF
+echo "firewall: ativa (clientes autorizados: ${ALLOWED_CLIENTS})"

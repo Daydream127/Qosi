@@ -1,0 +1,61 @@
+#!/bin/bash
+# VNF3 - Policer/Scheduler: policiamento à entrada e agendamento à saída.
+#
+# A interface de saída é o gargalo da topologia: tem sempre um limite de
+# LINK_RATE. O que muda entre modos é o que acontece dentro desse limite.
+#
+# Variáveis de ambiente:
+#   IN_IF, OUT_IF    interfaces de entrada e de saída da VNF
+#   LINK_RATE        capacidade do gargalo (ex.: 10mbit)
+#   QUEUE_PKTS       tamanho das filas, em pacotes
+#   SCHEDULING       1: três classes HTB (EF, AF31, BE); 0: uma única fila FIFO
+#   EF_RATE          débito garantido e máximo da classe EF (prioridade máxima)
+#   AF_RATE, BE_RATE débitos garantidos de AF31 e BE; funcionam como pesos na
+#                    partilha da capacidade que sobra
+#   POLICING         1: token bucket por classe à entrada; 0: sem policiamento
+#   EF_POLICE_RATE, EF_POLICE_BURST    perfil contratado para EF
+#   AF_POLICE_RATE, AF_POLICE_BURST    perfil contratado para AF31
+set -eu
+
+# Valores do campo ToS (DSCP << 2) usados nos filtros.
+TOS_EF=0xb8    # DSCP 46
+TOS_AF31=0x68  # DSCP 26
+
+tc qdisc del dev "$OUT_IF" root 2>/dev/null || true
+tc qdisc del dev "$IN_IF" ingress 2>/dev/null || true
+: > /vnf/tc_class_names
+
+# --- Agendamento à saída ---------------------------------------------------
+if [ "${SCHEDULING:-1}" = "1" ]; then
+  tc qdisc add dev "$OUT_IF" root handle 1: htb default 30
+  tc class add dev "$OUT_IF" parent 1:  classid 1:1  htb rate "$LINK_RATE" ceil "$LINK_RATE"
+  tc class add dev "$OUT_IF" parent 1:1 classid 1:10 htb rate "$EF_RATE" ceil "$EF_RATE"   prio 0 quantum 1514
+  tc class add dev "$OUT_IF" parent 1:1 classid 1:20 htb rate "$AF_RATE" ceil "$LINK_RATE" prio 1 quantum 1514
+  tc class add dev "$OUT_IF" parent 1:1 classid 1:30 htb rate "$BE_RATE" ceil "$LINK_RATE" prio 2 quantum 1514
+  tc qdisc add dev "$OUT_IF" parent 1:10 handle 10: pfifo limit "$QUEUE_PKTS"
+  tc qdisc add dev "$OUT_IF" parent 1:20 handle 20: pfifo limit "$QUEUE_PKTS"
+  tc qdisc add dev "$OUT_IF" parent 1:30 handle 30: pfifo limit "$QUEUE_PKTS"
+  tc filter add dev "$OUT_IF" parent 1: protocol ip prio 1 u32 match ip dsfield $TOS_EF   0xfc flowid 1:10
+  tc filter add dev "$OUT_IF" parent 1: protocol ip prio 2 u32 match ip dsfield $TOS_AF31 0xfc flowid 1:20
+  printf '1:10 ef\n1:20 af31\n1:30 be\n' >> /vnf/tc_class_names
+  echo "qos: agendamento HTB ativo (EF $EF_RATE prioritário; AF31 $AF_RATE; BE $BE_RATE; total $LINK_RATE)"
+else
+  tc qdisc add dev "$OUT_IF" root handle 1: htb default 1
+  tc class add dev "$OUT_IF" parent 1: classid 1:1 htb rate "$LINK_RATE" ceil "$LINK_RATE"
+  tc qdisc add dev "$OUT_IF" parent 1:1 handle 10: pfifo limit "$QUEUE_PKTS"
+  printf '1:1 fifo\n' >> /vnf/tc_class_names
+  echo "qos: sem agendamento (fila FIFO única a $LINK_RATE)"
+fi
+
+# --- Policiamento à entrada ------------------------------------------------
+if [ "${POLICING:-1}" = "1" ]; then
+  tc qdisc add dev "$IN_IF" handle ffff: ingress
+  tc filter add dev "$IN_IF" parent ffff: protocol ip prio 1 u32 match ip dsfield $TOS_EF 0xfc \
+     action police rate "$EF_POLICE_RATE" burst "$EF_POLICE_BURST" conform-exceed drop
+  tc filter add dev "$IN_IF" parent ffff: protocol ip prio 2 u32 match ip dsfield $TOS_AF31 0xfc \
+     action police rate "$AF_POLICE_RATE" burst "$AF_POLICE_BURST" conform-exceed drop
+  printf 'police:1 ef\npolice:2 af31\n' >> /vnf/tc_class_names
+  echo "qos: policiamento ativo (EF $EF_POLICE_RATE; AF31 $AF_POLICE_RATE)"
+else
+  echo "qos: sem policiamento"
+fi

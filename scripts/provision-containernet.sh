@@ -24,7 +24,10 @@ fi
 "$CN_DIR/venv/bin/pip" install --quiet --upgrade pip
 "$CN_DIR/venv/bin/pip" install --quiet "$CN_DIR"
 
-usermod -aG docker vagrant
+if id vagrant >/dev/null 2>&1; then
+  usermod -aG docker vagrant
+fi
+modprobe openvswitch
 systemctl enable --now docker openvswitch-switch
 
 echo "provision-containernet: ok"
