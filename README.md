@@ -51,7 +51,7 @@ Dentro da VM, o repositório está em `/vagrant`. Em Windows com o Hyper-V ativo
 
 ## Utilização
 
-Todos os comandos correm como root, na raiz do repositório, dentro do ambiente Linux.
+Todos os comandos correm como root, na raiz do repositório, dentro do ambiente Linux. No WSL2, a distribuição do trabalho abre-se com `wsl -d qosi`; o `wsl` sozinho abre a distribuição por omissão, onde nada disto está instalado.
 
 | Comando | O que faz |
 |---|---|

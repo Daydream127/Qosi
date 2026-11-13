@@ -20,9 +20,11 @@ Os cinco aspetos de QoS do enunciado estão cobertos (o enunciado exige três):
 
 Na véspera, no computador que vai ser usado:
 
-1. Abrir a distribuição WSL2 e ir para a pasta do repositório.
-2. Correr `make test` e confirmar `26/26 verificações passaram`.
-3. Correr `make monitoring` e abrir `http://localhost:3000` no browser. O dashboard "QoSI TP3" abre sem login.
+1. Abrir a distribuição do trabalho com `wsl -d qosi`, numa consola do Windows aberta na pasta do repositório. O `wsl` sozinho abre a distribuição por omissão, que não tem o Docker nem o Containernet.
+2. Correr `sudo make test` e confirmar `26/26 verificações passaram`.
+3. Correr `sudo make monitoring` e abrir `http://localhost:3000` no browser. O dashboard "QoSI TP3" abre sem login.
+
+Todos os comandos `make` deste guia precisam de root, daí o `sudo`. Sem ele, o erro é `permission denied while trying to connect to the docker API`.
 4. Fazer o roteiro da secção 3 uma vez do princípio ao fim.
 
 Dez minutos antes da demonstração:
@@ -39,7 +41,7 @@ A demonstração demora cerca de dez minutos. Todos os comandos a partir do pass
 ### Passo 1: arrancar a topologia
 
 ```bash
-make run PROFILE=baseline
+sudo make run PROFILE=baseline
 ```
 
 O que dizer: o script lê `config/chain.yaml`, cria os contentores e as ligações e configura cada VNF. Com o perfil `baseline`, as VNFs estão em modo de passagem: é a rede sem QoS.
@@ -133,7 +135,7 @@ A seguir, mostrar os gráficos da campanha (secção 5).
 Os comandos dos passos 2 a 7 estão em `docs/demo-comandos.txt`. O comando seguinte arranca a topologia, corre-os todos pela ordem e sai; demora cerca de dois minutos. Serve para ensaiar e como recurso se houver pouco tempo.
 
 ```bash
-make demo
+sudo make demo
 ```
 
 ## 4. Como explicar cada parte
@@ -254,8 +256,10 @@ A UC permite. Respondam com transparência sobre como a usaram; o que conta é s
 
 | Problema | O que fazer |
 |---|---|
-| A topologia não arranca ou ficou presa | Sair com `exit` ou Ctrl+C, correr `make clean` e voltar a arrancar |
-| O Grafana não abre | Correr `make monitoring`; confirmar que o WSL2 não foi desligado |
+| `docker: command not found` | Está aberta a distribuição errada: sair com `exit` e abrir com `wsl -d qosi` |
+| `permission denied` ao ligar ao Docker | Falta o `sudo` antes do `make` |
+| A topologia não arranca ou ficou presa | Sair com `exit` ou Ctrl+C, correr `sudo make clean` e voltar a arrancar |
+| O Grafana não abre | Correr `sudo make monitoring`; confirmar que o WSL2 não foi desligado |
 | O Grafana abre mas não tem dados | A topologia tem de estar a correr; confirmar o intervalo "Last 5 minutes" |
 | Os atrasos estão estranhos | Fechar aplicações pesadas e repetir; ligar o computador à corrente |
 | Não há tempo ou a rede falha | Mostrar a captura do Grafana e a saída do `make test` do relatório de progresso |
