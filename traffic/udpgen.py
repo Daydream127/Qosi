@@ -47,7 +47,9 @@ def send(args):
 
     start = time.perf_counter()
     for seq in range(total):
-        target = start + seq * interval
+        # Com --burst N, os pacotes saem em grupos de N seguidos (por exemplo, os
+        # pacotes de um frame de vídeo); o débito médio é o mesmo.
+        target = start + (seq // args.burst) * args.burst * interval
         # Dorme quase até ao instante certo e afina com espera ativa.
         remaining = target - time.perf_counter()
         if remaining > 0.001:
@@ -169,6 +171,8 @@ def main():
     tx.add_argument("--pps", type=float, required=True, help="pacotes por segundo")
     tx.add_argument("--size", type=int, default=172, help="tamanho do payload UDP em bytes")
     tx.add_argument("--duration", type=float, default=10.0, help="segundos")
+    tx.add_argument("--burst", type=int, default=1,
+                    help="pacotes enviados de seguida em cada rajada (1: débito constante)")
     tx.set_defaults(func=send)
 
     rx = sub.add_parser("recv", help="recebe um fluxo e calcula as métricas")

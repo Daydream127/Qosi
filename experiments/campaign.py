@@ -20,6 +20,7 @@ Cenários (ver a função points):
   outage    falha temporária da ligação ao núcleo
   queue     otimização: tamanho das filas do gargalo
   weights   otimização: pesos de AF31 e BE
+  bucket    otimização: tamanho do balde do policiador, com vídeo em rajadas
   overhead  sobrecarga da cadeia face ao encaminhamento direto
 """
 import argparse
@@ -52,6 +53,7 @@ def point(experiment, profile, x, **options):
     base = {"experiment": experiment, "profile": profile, "x": x,
             "chain": "default",      # "default" ou "none" (encaminhamento direto)
             "tcp_streams": 4, "voip": True, "video_mbit": 4, "be_probe": True,
+            "video_burst": 1,        # pacotes de vídeo enviados de seguida (um frame)
             "flood_mbit": 0,
             "overrides": {},         # alterações às variáveis das VNFs
             "core": {},              # delay e loss da ligação ao núcleo
@@ -97,6 +99,12 @@ def points():
         runs.append(point("weights", "sched", f"{af}/{be}", video_mbit=6,
                           overrides={"vnf3": {"AF_RATE": f"{af}mbit", "BE_RATE": f"{be}mbit"}}))
 
+    # Vídeo dentro do perfil (4 Mbit/s), mas em rajadas de 16 pacotes: um frame
+    # de 20 kB a cada 40 ms. O balde tem de comportar um frame inteiro.
+    for kilobytes in (5, 10, 20, 40, 100):
+        runs.append(point("bucket", "police", kilobytes, video_burst=16,
+                          overrides={"vnf3": {"AF_POLICE_BURST": f"{kilobytes}k"}}))
+
     # Sobrecarga: sem gargalo (10 Gbit/s) e sem atraso no núcleo, para medir só a cadeia.
     fast = {"vnf3": {"LINK_RATE": "10gbit", "EF_RATE": "1gbit",
                      "AF_RATE": "4gbit", "BE_RATE": "4gbit"}}
@@ -132,6 +140,7 @@ def run_point(qos, spec, duration, packets_path):
     if spec["video_mbit"]:
         flows["video"] = UdpFlow(qos, "h_video", "srv_video", port=VIDEO["port"],
                                  size=VIDEO["size"], duration=duration,
+                                 burst=spec["video_burst"],
                                  pps=spec["video_mbit"] * 1e6 / VIDEO_PACKET_BITS)
     if spec["be_probe"]:
         flows["be_probe"] = UdpFlow(qos, "h_bulk", "srv_bulk", duration=duration, **BE_PROBE)

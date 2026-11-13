@@ -121,17 +121,24 @@ def profiles_of(data, experiment):
     return [name for name in PROFILES if name in present]
 
 
-def style(ax, ylabel, xlabel):
+# As figuras são desenhadas à largura do texto do relatório (formato LNCS), para
+# as letras ficarem no documento com o tamanho definido aqui.
+WIDTH = 4.8        # polegadas
+ROW_HEIGHT = 1.3   # altura de cada linha de painéis
+
+
+def style(ax, ylabel, xlabel=None):
     ax.set_ylabel(ylabel, color=INK)
-    ax.set_xlabel(xlabel, color=INK)
+    if xlabel:
+        ax.set_xlabel(xlabel, color=INK)
     ax.set_ylim(bottom=0)
-    ax.grid(axis="y", color=GRID, linewidth=0.6)
+    ax.grid(axis="y", color=GRID, linewidth=0.5)
     ax.set_axisbelow(True)
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
     for side in ("left", "bottom"):
         ax.spines[side].set_color(MUTED)
-    ax.tick_params(colors=MUTED, labelsize=8)
+    ax.tick_params(colors=MUTED, labelsize=6.5, length=2.5)
 
 
 def lines(ax, data, experiment, flow, metric, scale=1.0):
@@ -147,8 +154,8 @@ def lines(ax, data, experiment, flow, metric, scale=1.0):
         ax.errorbar([p[0] for p in points], [p[1] for p in points],
                     yerr=[[p[2] for p in points], [p[3] for p in points]],
                     label=label, color=color, marker=marker,
-                    linewidth=2, markersize=6.5, markeredgecolor="white", markeredgewidth=1,
-                    capsize=2.5, elinewidth=1)
+                    linewidth=1.6, markersize=5, markeredgecolor="white", markeredgewidth=0.8,
+                    capsize=2, elinewidth=0.9)
     ax.set_xticks(range(len(xs)))
     ax.set_xticklabels(xs)
 
@@ -168,11 +175,11 @@ def bars(ax, data, experiment, flow, metric, scale=1.0):
             mean, low, high = point
             position = i - 0.4 + width * (index + 0.5)
             ax.bar(position, mean, width * 0.9, yerr=[[low], [high]], color=color,
-                   label=label if i == 0 else None, capsize=2.5,
-                   error_kw={"elinewidth": 1, "ecolor": INK})
+                   label=label if i == 0 else None, capsize=2,
+                   error_kw={"elinewidth": 0.9, "ecolor": INK})
             ax.annotate(f"{mean:.3g}", (position, mean + high),
-                        textcoords="offset points", xytext=(0, 2), ha="center",
-                        fontsize=7, color=INK)
+                        textcoords="offset points", xytext=(0, 1.5), ha="center",
+                        fontsize=6, color=INK)
     ax.set_xticks(range(len(xs)))
     ax.set_xticklabels(xs)
 
@@ -183,13 +190,17 @@ def figure(panels, path, xlabel, kind=lines, columns=2):
     xlabel é um título comum ou uma lista com um título por painel.
     """
     rows = math.ceil(len(panels) / columns)
-    xlabels = xlabel if isinstance(xlabel, list) else [xlabel] * len(panels)
-    fig, axes = plt.subplots(rows, columns, figsize=(6.4, 2.35 * rows + 0.45), squeeze=False)
+    shared = None if isinstance(xlabel, list) else xlabel  # um só título, em baixo
+    xlabels = xlabel if isinstance(xlabel, list) else [None] * len(panels)
+    fig, axes = plt.subplots(rows, columns, squeeze=False,
+                             figsize=(WIDTH, ROW_HEIGHT * rows + (0.38 if shared else 0.3)))
     for ax, (ylabel, args), label in zip(axes.flat, panels, xlabels):
         kind(ax, *args)
         style(ax, ylabel, label)
         if args[3] == "mos":  # a escala do MOS vai de 1 (mau) a 4,5 (excelente)
             ax.set_ylim(1, 4.6)
+    if shared:
+        fig.supxlabel(shared, fontsize=7.5, color=INK)
     for ax in axes.flat[len(panels):]:
         ax.set_visible(False)
     # Legenda comum: cada perfil aparece uma vez, mesmo que falte nalgum painel.
@@ -202,17 +213,18 @@ def figure(panels, path, xlabel, kind=lines, columns=2):
     legend_height = 0.0
     if len(labels) > 1:  # com uma só série, o título do eixo chega
         per_row = len(labels) if len(labels) <= 4 else 3
-        legend_height = 0.12 + 0.2 * math.ceil(len(labels) / per_row)
-        fig.legend(handles, labels, loc="upper center", ncol=per_row,
-                   frameon=False, fontsize=8, handlelength=1.6, columnspacing=1.2)
-    fig.tight_layout(rect=(0, 0, 1, 1 - legend_height / fig.get_figheight()))
+        legend_height = 0.1 + 0.17 * math.ceil(len(labels) / per_row)
+        fig.legend(handles, labels, loc="upper center", ncol=per_row, frameon=False,
+                   fontsize=7, handlelength=1.5, columnspacing=1.0, borderaxespad=0.2)
+    fig.tight_layout(pad=0.4, w_pad=1.2, h_pad=0.8,
+                     rect=(0, 0, 1, 1 - legend_height / fig.get_figheight()))
     save(fig, path)
 
 
 def save(fig, path):
     """Grava em PDF e PNG. Sem data no PDF, o ficheiro só muda se o gráfico mudar."""
     fig.savefig(f"{path}.pdf", metadata={"CreationDate": None})
-    fig.savefig(f"{path}.png", dpi=200)
+    fig.savefig(f"{path}.png", dpi=260)
     plt.close(fig)
 
 
@@ -224,7 +236,8 @@ def outage_figure(out_dir, path):
     if not files:
         return
     # Mesma escala nos dois painéis, para a comparação ser direta.
-    fig, axes = plt.subplots(1, len(files), figsize=(6.4, 2.6), squeeze=False, sharey=True)
+    fig, axes = plt.subplots(1, len(files), figsize=(WIDTH, ROW_HEIGHT + 0.5), squeeze=False,
+                             sharey=True)
     for ax, (profile, name) in zip(axes.flat, files.items()):
         with open(name, newline="") as handle:
             rows = [(float(r["t_ms"]) / 1000, float(r["owd_ms"])) for r in csv.DictReader(handle)]
@@ -239,14 +252,16 @@ def outage_figure(out_dir, path):
                     widest = (t0, t1)
             times.append(t1)
             delays.append(owd)
-        ax.plot(times, delays, color=color, linewidth=1.2)
+        ax.plot(times, delays, color=color, linewidth=0.8)
         if widest[1] > widest[0]:
             ax.axvspan(*widest, color=GRID, alpha=0.6, linewidth=0)
             ax.annotate("falha", ((widest[0] + widest[1]) / 2, 0.45),
-                        xycoords=("data", "axes fraction"), ha="center", fontsize=8, color=MUTED)
-        ax.set_title(label, fontsize=9, color=INK)
-        style(ax, "Atraso VoIP (ms)", "Tempo (s)")
-    fig.tight_layout()
+                        xycoords=("data", "axes fraction"), ha="center", fontsize=6.5,
+                        color=MUTED)
+        ax.set_title(label, fontsize=7.5, color=INK)
+        style(ax, "Atraso VoIP (ms)" if ax is axes.flat[0] else "")
+    fig.supxlabel("Tempo (s)", fontsize=7.5, color=INK)
+    fig.tight_layout(pad=0.4, w_pad=1.2)
     save(fig, path)
 
 
@@ -275,7 +290,8 @@ def main():
     data = load(os.path.join(out_dir, "runs.csv"))
     figures = os.path.join(out_dir, "figures")
     os.makedirs(figures, exist_ok=True)
-    plt.rcParams.update({"font.size": 8.5, "axes.labelsize": 8.5, "font.family": "DejaVu Sans"})
+    plt.rcParams.update({"font.size": 7.5, "axes.labelsize": 7.5, "axes.linewidth": 0.6,
+                         "font.family": "DejaVu Sans"})
     experiments = {key[0] for key in data}
 
     def path(name):
@@ -297,7 +313,7 @@ def main():
         figure([("Débito TCP (Mbit/s)", (data, "flood", "bulk", "throughput_kbps", 0.001)),
                 ("Atraso VoIP, p95 (ms)", (data, "flood", "voip", "owd_ms_p95")),
                 ("Perdas vídeo (%)", (data, "flood", "video", "loss_ratio", 100)),
-                ("Tráfego de h_x entregue (Mbit/s)",
+                ("h_x entregue (Mbit/s)",
                  (data, "flood", "flood", "throughput_kbps", 0.001))],
                path("flood"), "Débito do tráfego não autorizado (Mbit/s)")
     if "delay" in experiments:
@@ -309,24 +325,27 @@ def main():
                 ("Débito TCP (Mbit/s)", (data, "loss", "bulk", "throughput_kbps", 0.001))],
                path("loss"), "Perdas na ligação ao núcleo (%)")
     if "queue" in experiments:
-        figure([("Atraso best effort, p95 (ms)", (data, "queue", "be_probe", "owd_ms_p95")),
+        figure([("Atraso BE, p95 (ms)", (data, "queue", "be_probe", "owd_ms_p95")),
                 ("Débito TCP (Mbit/s)", (data, "queue", "bulk", "throughput_kbps", 0.001))],
                path("queue"), "Tamanho das filas (pacotes)")
     if "weights" in experiments:
         figure([("Perdas vídeo (%)", (data, "weights", "video", "loss_ratio", 100)),
                 ("Débito TCP (Mbit/s)", (data, "weights", "bulk", "throughput_kbps", 0.001))],
                path("weights"), "Débito garantido AF31/BE (Mbit/s)", kind=bars)
+    if "bucket" in experiments:
+        figure([("Perdas vídeo (%)", (data, "bucket", "video", "loss_ratio", 100)),
+                ("Atraso vídeo, p95 (ms)", (data, "bucket", "video", "owd_ms_p95"))],
+               path("bucket"), "Tamanho do balde do policiador de AF31 (kB)")
     if "overhead" in experiments:
         figure([("Atraso VoIP, média (ms)", (data, "overhead", "voip", "owd_ms_mean")),
                 ("Débito TCP (Gbit/s)", (data, "overhead", "bulk", "throughput_kbps", 1e-6))],
                path("overhead"), "", kind=bars)
     if "outage" in experiments:
         outage_figure(out_dir, path("outage"))
+    # MOS nos dois cenários em que mais varia; nos restantes está em summary.csv.
     with_mos = [(name, label) for name, label in (
-        ("load", "Fluxos TCP em concorrência"),
         ("policing", "Débito da fonte de vídeo (Mbit/s)"),
-        ("flood", "Tráfego não autorizado (Mbit/s)"),
-        ("delay", "Atraso na ligação ao núcleo (ms)")) if name in experiments]
+        ("flood", "Tráfego não autorizado (Mbit/s)")) if name in experiments]
     if with_mos:
         figure([("MOS estimado (VoIP)", (data, name, "voip", "mos")) for name, _ in with_mos],
                path("mos"), [label for _, label in with_mos])

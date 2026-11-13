@@ -180,7 +180,7 @@ Um perfil é um conjunto de alterações às variáveis das VNFs. Permite compar
 
 ## 5. Resultados a mostrar
 
-Os resultados são da campanha completa: 395 corridas de 60 s, cinco repetições por ponto, médias com intervalo de confiança de 95%. Os gráficos estão em `results/full/figures/` e os números em `results/full/summary.csv`.
+Os resultados são da campanha completa: 420 corridas de 60 s, cinco repetições por ponto, médias com intervalo de confiança de 95%. Os gráficos estão em `results/full/figures/` e os números em `results/full/summary.csv`.
 
 O resultado principal, com VoIP, vídeo e quatro fluxos TCP no gargalo de 10 Mbit/s:
 
@@ -201,6 +201,7 @@ O que cada gráfico mostra:
 | [mos](../results/full/figures/mos.png) | Com a cadeia, o MOS estimado do VoIP é sempre 4,4. Sem QoS desce para 1,5 com vídeo fora do perfil e para 1,3 com tráfego não autorizado. |
 | [queue](../results/full/figures/queue.png) | Otimização: filas maiores não dão mais débito ao TCP e aumentam o atraso da classe best effort (p95 de 44 ms com 20 pacotes, 592 ms com 300). O VoIP não é afetado. |
 | [weights](../results/full/figures/weights.png) | Otimização: com vídeo a 6 Mbit/s, garantir só 3 Mbit/s a AF31 dá 35% de perdas no vídeo; com 5 Mbit/s dá 2,2% e com 7 Mbit/s nenhuma, à custa do TCP (5,6, 3,8 e 3,6 Mbit/s). |
+| [bucket](../results/full/figures/bucket.png) | Otimização: com o vídeo dentro do perfil mas em rajadas de 20 kB (um frame), um balde de 5 kB no policiador descarta 75% dos pacotes e um de 10 kB descarta 50%; a partir de 20 kB não há perdas. O balde tem de comportar a maior rajada legítima. |
 | [delay](../results/full/figures/delay.png) | A cadeia não elimina o atraso do núcleo, mas retira-lhe o atraso da fila: com 100 ms no núcleo, o VoIP tem 100 ms (p95) com a cadeia e 202 ms sem ela. |
 | [loss](../results/full/figures/loss.png) | As perdas no núcleo acontecem depois da cadeia e afetam todas as configurações por igual: o QoS no acesso não as corrige. |
 | [outage](../results/full/figures/outage.png) | Depois de uma falha de 3 s na ligação ao núcleo, o VoIP volta logo aos 5 ms com a cadeia. Sem QoS, volta aos 100 ms assim que o TCP recupera. |

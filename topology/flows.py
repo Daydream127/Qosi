@@ -19,9 +19,12 @@ FLOOD_PORT = 5009                                  # tráfego não autorizado de
 
 
 class UdpFlow:
-    """Fluxo UDP de débito constante, medido pelo udpgen no destino."""
+    """Fluxo UDP medido pelo udpgen no destino.
 
-    def __init__(self, qos, client, server, port, pps, size, duration, packets=False):
+    O débito é constante; com burst=N, os pacotes saem em rajadas de N.
+    """
+
+    def __init__(self, qos, client, server, port, pps, size, duration, packets=False, burst=1):
         self.qos, self.duration = qos, duration
         self.server = qos[server]
         self.rx_file = f"/tmp/udp-rx-{next(_ids)}.json"
@@ -34,7 +37,8 @@ class UdpFlow:
         time.sleep(0.3)  # dá tempo ao recetor para abrir a porta
         self.client = qos[client]
         self.client.cmd(f"udpgen send --dst {qos.ip(server)} --port {port} --pps {pps} "
-                        f"--size {size} --duration {duration} >{self.tx_file} 2>&1 &")
+                        f"--size {size} --duration {duration} --burst {burst} "
+                        f">{self.tx_file} 2>&1 &")
         self.started = time.monotonic()
 
     def result(self):

@@ -5,7 +5,7 @@ PROFILE ?= full
 
 SET ?= quick
 
-.PHONY: images smoke test run demomonitoring monitoring-stop clean proposta progresso experiments plots
+.PHONY: images smoke test run demomonitoring monitoring-stop clean proposta progresso relatorio experiments plots
 
 images: ; bash scripts/build-images.sh
 smoke: images ; $(PY) tests/smoke_test.py
@@ -19,3 +19,4 @@ plots: ; python3 experiments/plot.py --set $(SET)
 clean: ; bash scripts/clean.sh
 proposta: ; bash scripts/build-doc.sh docs/proposta/proposta.tex
 progresso: ; bash scripts/build-doc.sh docs/progresso/progresso.tex
+relatorio: ; bash scripts/build-doc.sh docs/relatorio/relatorio.tex

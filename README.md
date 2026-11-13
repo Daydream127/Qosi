@@ -88,7 +88,7 @@ A consola tem dois comandos próprios: `profile <nome>` muda de perfil sem reini
 
 ## Experiências
 
-A campanha (`experiments/campaign.py`) corre nove cenários e grava uma linha por fluxo e por corrida em `results/<conjunto>/runs.csv`. Pode ser interrompida e retomada.
+A campanha (`experiments/campaign.py`) corre dez cenários e grava uma linha por fluxo e por corrida em `results/<conjunto>/runs.csv`. Pode ser interrompida e retomada.
 
 | Cenário | O que varia |
 |---|---|
@@ -98,6 +98,7 @@ A campanha (`experiments/campaign.py`) corre nove cenários e grava uma linha po
 | `delay`, `loss` | Atraso e perdas na ligação ao núcleo |
 | `outage` | Falha de 3 segundos da ligação ao núcleo |
 | `queue`, `weights` | Otimização: tamanho das filas e pesos de AF31 e BE |
+| `bucket` | Otimização: tamanho do balde do policiador, com vídeo em rajadas |
 | `overhead` | Sobrecarga da cadeia face ao encaminhamento direto |
 
 Há dois conjuntos: `quick` (corridas de 15 s, 2 repetições, cerca de uma hora) e `full` (60 s, 5 repetições, cerca de 8 horas). Os resultados de ambos estão em `results/`; os do relatório final são os de `results/full/`. As métricas são medidas pelo `udpgen` com o relógio monotónico, que é comum a todos os contentores. Para o VoIP, os gráficos incluem o MOS estimado pelo modelo E simplificado (Cole e Rosenbluth), a partir do atraso médio e das perdas.
@@ -117,6 +118,7 @@ Há dois conjuntos: `quick` (corridas de 15 s, 2 repetições, cerca de uma hora
 | `scripts/` | Instalação do ambiente, construção das imagens e limpeza |
 | `docs/proposta/` | Proposta (Etapa 1), em LaTeX |
 | `docs/progresso/` | Relatório de progresso (Etapa 2), em LaTeX |
+| `docs/relatorio/` | Relatório final (Etapa 3), em LaTeX |
 | `docs/guia-demonstracao.md` | Guia para explicar e demonstrar o trabalho |
 
 ## Autores

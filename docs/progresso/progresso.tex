@@ -66,7 +66,7 @@ Fase & O que está feito & Estado \\
   instalado por \emph{scripts}. & Concluída \\
 2 VNFs isoladas & Quatro VNFs em imagens Docker, gerador de tráfego e
   26~testes automáticos. & Concluída \\
-3 Integração e otimização & Cadeia integrada com cinco perfis; campanha de nove
+3 Integração e otimização & Cadeia integrada com cinco perfis; campanha de dez
   cenários; otimização iniciada. & Em curso \\
 4 Análise e relatório & Campanha completa corrida; gráficos e tabela-resumo
   automáticos. Falta a análise final e o relatório. & Em curso \\
@@ -197,10 +197,10 @@ $ sudo make test
 \end{code}
 
 \subsubsection{Campanha de experiências.}
-A campanha (\texttt{make experiments}) corre nove cenários, que variam a carga, o
+A campanha (\texttt{make experiments}) corre dez cenários, que variam a carga, o
 débito do vídeo, o tráfego não autorizado, as condições da ligação ao núcleo e os
 parâmetros das filas. Os resultados seguintes são da campanha prevista na proposta:
-395~corridas de 60~s, com cinco repetições por ponto. A análise completa fica para o
+420~corridas de 60~s, com cinco repetições por ponto. A análise completa fica para o
 relatório final.
 
 \begin{table}[!ht]
@@ -230,7 +230,7 @@ perdas em VoIP e vídeo, com um custo pequeno no débito TCP.
 
 \begin{figure}[!ht]
 \centering
-\includegraphics[width=0.72\textwidth]{flood.pdf}
+\includegraphics[width=0.9\textwidth]{flood.pdf}
 \caption{Efeito de tráfego UDP não autorizado, enviado por h\_x. As barras de erro são
 intervalos de confiança de 95\%.}
 \label{fig:flood}
