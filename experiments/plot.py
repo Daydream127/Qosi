@@ -99,9 +99,10 @@ def whiskers(values, metric, scale):
     if mean is None:
         return None
     low, high = (mean - ci, mean + ci) if len(values) >= 3 else (min(values), max(values))
-    low = max(low, 0.0)                    # nenhuma das métricas é negativa
-    if metric == "loss_ratio":
-        high = min(high, 1.0)
+    # Limites de cada métrica: nenhuma é negativa, as perdas não passam de 100%
+    # e o MOS vai de 1 a 4,5.
+    floor, ceiling = {"loss_ratio": (0.0, 1.0), "mos": (1.0, 4.5)}.get(metric, (0.0, math.inf))
+    low, high = max(low, floor), min(high, ceiling)
     return mean * scale, (mean - low) * scale, (high - mean) * scale
 
 
@@ -241,7 +242,7 @@ def outage_figure(out_dir, path):
         ax.plot(times, delays, color=color, linewidth=1.2)
         if widest[1] > widest[0]:
             ax.axvspan(*widest, color=GRID, alpha=0.6, linewidth=0)
-            ax.annotate("falha", ((widest[0] + widest[1]) / 2, 0.92),
+            ax.annotate("falha", ((widest[0] + widest[1]) / 2, 0.45),
                         xycoords=("data", "axes fraction"), ha="center", fontsize=8, color=MUTED)
         ax.set_title(label, fontsize=9, color=INK)
         style(ax, "Atraso VoIP (ms)", "Tempo (s)")

@@ -10,6 +10,11 @@ Sem mais opções, abre a consola do Mininet. Por exemplo:
     h_voip traceroute -n 10.0.2.11
     vnf3 tc -s class show dev vnf3-out
 
+A consola tem dois comandos extra, pensados para a demonstração:
+    profile baseline     muda o perfil das VNFs sem reiniciar a topologia
+    traffic 20           gera 20 s de tráfego e mostra as métricas medidas
+    traffic 20 stress    junta vídeo acima do perfil e tráfego de h_x
+
 Com --demo N, em vez da consola gera durante N segundos a mistura de tráfego
 dos testes (VoIP, vídeo e quatro fluxos TCP) e mostra as métricas no fim. É
 útil para ver o dashboard do Grafana a mexer; com --stress, o policiador e a
@@ -48,6 +53,34 @@ def demo(qos, duration, stress=False):
         print(f"h_x    {r.get('sent')} pacotes enviados, {r.get('received')} entregues")
 
 
+class DemoCLI(CLI):
+    """Consola do Mininet com dois comandos extra, para demonstrações ao vivo."""
+
+    def __init__(self, qos, script=None):
+        self.qos = qos
+        super().__init__(qos.net, script=script)
+
+    def onecmd(self, line):
+        if self.inputFile and line.strip():  # num guião, mostra o comando antes da saída
+            print(f"\ncontainernet> {line.strip()}", flush=True)
+        return super().onecmd(line)
+
+    def do_profile(self, line):
+        "profile <nome>: muda o perfil das VNFs sem reiniciar a topologia"
+        name = line.strip()
+        if name not in self.qos.config["profiles"]:
+            print("perfis: " + ", ".join(self.qos.config["profiles"]))
+            return
+        self.qos.apply_profile(name)
+
+    def do_traffic(self, line):
+        "traffic [segundos] [stress]: gera VoIP, vídeo e 4 fluxos TCP e mostra as métricas"
+        words = line.split()
+        seconds = next((int(word) for word in words if word.isdigit()), 20)
+        print(f"a gerar tráfego durante {seconds} s (perfil {self.qos.profile})...")
+        demo(self.qos, seconds, "stress" in words)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -56,6 +89,8 @@ def main():
                         help="perfil definido em config/chain.yaml (baseline, sched, police, full)")
     parser.add_argument("--demo", type=int, metavar="N",
                         help="gera tráfego durante N segundos em vez de abrir a consola")
+    parser.add_argument("--script", metavar="FICHEIRO",
+                        help="corre os comandos de consola do ficheiro, um por linha, e sai")
     parser.add_argument("--stress", action="store_true",
                         help="com --demo: junta vídeo acima do perfil e tráfego não autorizado")
     args = parser.parse_args()
@@ -65,7 +100,7 @@ def main():
     try:
         qos.start(args.profile)
         if args.demo is None:
-            CLI(qos.net)
+            DemoCLI(qos, script=args.script)
         else:
             demo(qos, args.demo, args.stress)
     finally:

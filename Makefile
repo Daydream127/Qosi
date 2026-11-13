@@ -5,12 +5,13 @@ PROFILE ?= full
 
 SET ?= quick
 
-.PHONY: images smoke test run monitoring monitoring-stop clean proposta progresso experiments plots
+.PHONY: images smoke test run demomonitoring monitoring-stop clean proposta progresso experiments plots
 
 images: ; bash scripts/build-images.sh
 smoke: images ; $(PY) tests/smoke_test.py
 test: images ; $(PY) tests/test_vnfs.py
 run: images ; $(PY) topology/run.py --profile $(PROFILE)
+demo: images ; $(PY) topology/run.py --profile baseline --script docs/demo-comandos.txt
 monitoring: ; bash monitoring/start.sh
 monitoring-stop: ; bash monitoring/stop.sh
 experiments: images ; $(PY) experiments/campaign.py --set $(SET)

@@ -60,6 +60,7 @@ Todos os comandos correm como root, na raiz do repositório, dentro do ambiente 
 | `sudo make test` | Testa cada VNF isoladamente, com tráfego controlado |
 | `sudo make run PROFILE=full` | Arranca a topologia e abre a consola do Mininet |
 | `sudo make monitoring` | Arranca o Prometheus (porta 9090) e o Grafana (porta 3000) |
+| `sudo make demo` | Corre o roteiro da demonstração de uma vez (ver `docs/guia-demonstracao.md`) |
 | `sudo /opt/containernet/venv/bin/python3 topology/run.py --demo 120 --stress` | Gera dois minutos de tráfego, para ver o dashboard do Grafana a mexer |
 | `sudo make experiments SET=quick` | Corre a campanha de experiências (ver abaixo) |
 | `make plots SET=quick` | Gera os gráficos e a tabela-resumo da campanha |
@@ -83,6 +84,8 @@ vnf3 tc -s class show dev vnf3-out
 vnf2 nft list ruleset
 ```
 
+A consola tem dois comandos próprios: `profile <nome>` muda de perfil sem reiniciar a topologia e `traffic 20` gera 20 segundos de tráfego e mostra as métricas (`traffic 20 stress` junta vídeo acima do perfil e tráfego não autorizado).
+
 ## Experiências
 
 A campanha (`experiments/campaign.py`) corre nove cenários e grava uma linha por fluxo e por corrida em `results/<conjunto>/runs.csv`. Pode ser interrompida e retomada.
@@ -97,7 +100,7 @@ A campanha (`experiments/campaign.py`) corre nove cenários e grava uma linha po
 | `queue`, `weights` | Otimização: tamanho das filas e pesos de AF31 e BE |
 | `overhead` | Sobrecarga da cadeia face ao encaminhamento direto |
 
-Há dois conjuntos: `quick` (corridas de 15 s, 2 repetições, cerca de uma hora) e `full` (60 s, 5 repetições, cerca de 8 horas). As métricas são medidas pelo `udpgen` com o relógio monotónico, que é comum a todos os contentores. Para o VoIP, os gráficos incluem o MOS estimado pelo modelo E simplificado (Cole e Rosenbluth), a partir do atraso médio e das perdas.
+Há dois conjuntos: `quick` (corridas de 15 s, 2 repetições, cerca de uma hora) e `full` (60 s, 5 repetições, cerca de 8 horas). Os resultados de ambos estão em `results/`; os do relatório final são os de `results/full/`. As métricas são medidas pelo `udpgen` com o relógio monotónico, que é comum a todos os contentores. Para o VoIP, os gráficos incluem o MOS estimado pelo modelo E simplificado (Cole e Rosenbluth), a partir do atraso médio e das perdas.
 
 ## Estrutura
 
@@ -114,6 +117,7 @@ Há dois conjuntos: `quick` (corridas de 15 s, 2 repetições, cerca de uma hora
 | `scripts/` | Instalação do ambiente, construção das imagens e limpeza |
 | `docs/proposta/` | Proposta (Etapa 1), em LaTeX |
 | `docs/progresso/` | Relatório de progresso (Etapa 2), em LaTeX |
+| `docs/guia-demonstracao.md` | Guia para explicar e demonstrar o trabalho |
 
 ## Autores
 
