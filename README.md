@@ -29,7 +29,7 @@ Numa consola do Windows, criar uma distribuição dedicada:
 wsl --install Ubuntu-22.04 --name qosi
 ```
 
-Dentro dela, ativar o systemd em `/etc/wsl.conf` (`[boot]` seguido de `systemd=true`), reiniciá-la com `wsl --terminate qosi` e, na pasta do repositório, instalar tudo (cerca de 20 minutos):
+Dentro dela, ativar o systemd em `/etc/wsl.conf` (`[boot]` seguido de `systemd=true`), reiniciá-la com `wsl --terminate qosi` e, na pasta do repositório, instalar tudo (entre 3 e 20 minutos, conforme a ligação à Internet):
 
 ```bash
 sudo bash scripts/provision-all.sh
@@ -62,8 +62,8 @@ Todos os comandos correm como root, na raiz do repositório, dentro do ambiente 
 | `sudo make monitoring` | Arranca o Prometheus (porta 9090) e o Grafana (porta 3000) |
 | `sudo make demo` | Corre o roteiro da demonstração de uma vez (ver `docs/guia-demonstracao.md`) |
 | `sudo /opt/containernet/venv/bin/python3 topology/run.py --demo 120 --stress` | Gera dois minutos de tráfego, para ver o dashboard do Grafana a mexer |
-| `sudo make experiments SET=quick` | Corre a campanha de experiências (ver abaixo) |
-| `make plots SET=quick` | Gera os gráficos e a tabela-resumo da campanha |
+| `sudo make experiments SET=quick` | Corre a campanha de experiências e gera os gráficos (ver abaixo) |
+| `make plots SET=quick` | Volta a gerar só os gráficos e a tabela-resumo, sem repetir a campanha |
 | `sudo make clean` | Limpa os restos de uma topologia que não terminou bem |
 
 Os perfis (`PROFILE`) estão definidos em `config/chain.yaml`:

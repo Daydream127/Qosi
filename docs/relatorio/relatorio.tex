@@ -377,11 +377,14 @@ Sobrecarga & Sem gargalo: encaminhamento direto ou pela cadeia & direto, \texttt
 
 Cada ponto é medido em cinco corridas independentes de 60~s, num total de
 420~corridas e cerca de oito horas. Os fluxos TCP arrancam 1,5~s antes dos restantes,
-para a fila já estar cheia quando a medição começa. Os gráficos mostram a média das
+para a fila já estar cheia quando a medição começa. O débito TCP é a média sobre toda
+a duração do fluxo, que inclui esses instantes sem tráfego UDP: fica sobrestimado em
+0,1 a 0,3~Mbit/s e, onde se lê cerca de 0,3~Mbit/s, o débito durante a contenção é
+praticamente nulo. Os gráficos mostram a média das
 cinco corridas e o intervalo de confiança de 95\%, calculado com a distribuição $t$ de
 Student. Um único comando (\texttt{make experiments SET=full}) corre a campanha, que
-pode ser interrompida e retomada, e outro (\texttt{make plots}) gera os gráficos e a
-tabela-resumo a partir do ficheiro com uma linha por fluxo e por corrida.
+pode ser interrompida e retomada, e gera os gráficos e a tabela-resumo a partir do
+ficheiro com uma linha por fluxo e por corrida.
 
 \section{Resultados}
 \label{sec:res}
@@ -441,8 +444,10 @@ Com classificação e agendamento, o VoIP e o vídeo ficam isolados da carga. O 
 VoIP mantém-se em 5,3~ms, que é o atraso do núcleo, tanto com um fluxo TCP como com
 oito; a amplitude do atraso fica abaixo de 0,5~ms e não há perdas em VoIP nem em
 vídeo em nenhuma das corridas. O TCP continua a usar a capacidade que sobra: com a
-cadeia completa obtém 5,43~Mbit/s, menos 4\% do que sem QoS. Essa diferença é o que o
-VoIP e o vídeo deixaram de perder.
+cadeia completa obtém 5,43~Mbit/s, menos 4\% do que sem QoS. A diferença não vem do
+tráfego prioritário, que ocupa o mesmo nos dois casos, mas da fila própria da classe
+BE, onde o atraso sentido pelo TCP duplica: com filas de 50~pacotes, o TCP obtém o
+mesmo débito que sem QoS (Secção~\ref{sec:otim}).
 
 \subsection{Fonte de vídeo fora do perfil}
 
@@ -463,8 +468,9 @@ Os três perfis com QoS mostram que o policiamento e o agendamento se completam:
 
 \begin{itemize}
 \item \textbf{Só policiamento.} O vídeo é limitado a 5,0~Mbit/s e o TCP mantém
-4,8~Mbit/s, mas a fila continua a ser única e o atraso do VoIP continua em 107~ms. O
-policiamento garante equidade, não garante atraso.
+4,8~Mbit/s, mas a fila continua a ser única: o atraso do VoIP continua em 107~ms e a
+sua variação (IPDV) entre 4,7 e 5,4~ms, da mesma ordem que sem QoS, contra menos de
+0,1~ms com agendamento. O policiamento garante equidade, não garante atraso nem \emph{jitter}.
 \item \textbf{Só agendamento.} O VoIP fica protegido (5,3~ms, sem perdas). O vídeo
 obtém 5,85~Mbit/s, porque a classe AF31 tem prioridade sobre BE na capacidade que
 sobra, e o TCP fica nos 3,8~Mbit/s garantidos. Mas a fila de AF31 está sempre cheia,
@@ -521,8 +527,7 @@ do núcleo soma-se sempre, mas sem QoS soma-se ao atraso da fila: com 100~ms no
 núcleo, o VoIP tem 100~ms com a cadeia e 202~ms sem ela, já acima do limiar a partir
 do qual o modelo~E penaliza a conversação. As perdas do núcleo acontecem depois da
 cadeia e afetam as duas configurações por igual; nenhum mecanismo no acesso as pode
-corrigir. Há um efeito secundário curioso sem QoS: com perdas no núcleo, o TCP reduz
-o ritmo, a fila fica menos cheia e o atraso médio do VoIP desce de 97~ms para 42~ms.
+corrigir.
 
 \begin{table}[!tb]
 \caption{VoIP com quatro fluxos TCP, em função das condições da ligação ao núcleo.}
@@ -557,6 +562,7 @@ recupera.
 \end{figure}
 
 \subsection{Otimização dos parâmetros}
+\label{sec:otim}
 
 \subsubsection{Tamanho das filas.}
 A Fig.~\ref{fig:queue} mostra o efeito do tamanho das filas das classes HTB. O atraso
@@ -651,8 +657,8 @@ acesso} protege a classe \emph{best effort}, que os outros mecanismos deixam exp
 A \emph{monitorização} não altera o tráfego, mas foi o que permitiu verificar cada
 um destes efeitos e detetar erros de configuração durante o desenvolvimento.
 
-Os compromissos medidos são os clássicos do DiffServ. Dar prioridade ao VoIP custa
-ao TCP 4\% do débito. Policiar custa perdas a quem excede o contrato. Aumentar o
+Os compromissos medidos são os clássicos do DiffServ. Separar as classes custa
+ao TCP 4\% do débito, com as filas de referência. Policiar custa perdas a quem excede o contrato. Aumentar o
 débito garantido de uma classe retira-o às outras. Aumentar as filas troca perdas por
 atraso. Em nenhum caso há ganho sem custo; o que os mecanismos fazem é escolher quem
 paga, e essa escolha passa a estar num ficheiro de configuração.
@@ -696,7 +702,8 @@ A avaliação tem limitações que convém ter presentes. É uma emulação numa
 pelo que os valores absolutos de sobrecarga não se transpõem para outro
 \emph{hardware}. O tráfego é sintético, com um só gargalo e fontes UDP que não reagem
 ao congestionamento. A classificação é feita por portas e não distingue aplicações
-que as partilhem. O MOS é uma estimativa, e não uma medida subjetiva.
+que as partilhem, e a cadeia só trata o sentido dos clientes para os servidores. O MOS
+é uma estimativa, e não uma medida subjetiva.
 
 \section{Conclusão}
 \label{sec:conc}
@@ -712,43 +719,27 @@ A principal lição é que os mecanismos se completam: o agendamento garante o a
 o policiamento a equidade e o controlo de acesso protege a classe sem garantias. A
 otimização deu regras simples para os parâmetros: filas curtas, débitos garantidos
 iguais ao perfil contratado e baldes à medida da maior rajada legítima. A
-virtualização custa cerca de dois terços do débito máximo de encaminhamento, um preço
-irrelevante no acesso.
+virtualização custa dois terços do débito máximo, um preço irrelevante no acesso.
 
-Como trabalho futuro, o mais natural seria usar uma plataforma de orquestração que
-vigie e escale as VNFs, gestão ativa de filas na classe \emph{best effort} e tráfego
-real de aplicações.
+Como trabalho futuro, propõe-se uma plataforma de orquestração que vigie e escale
+as VNFs, gestão ativa de filas na classe \emph{best effort} e tráfego real.
 
-\begin{thebibliography}{15}
-\bibitem{etsi-nfv} ETSI: Network Functions Virtualisation (NFV); Architectural
-Framework. ETSI GS NFV 002 V1.2.1 (2014)
-\bibitem{rfc2475} Blake, S., Black, D., Carlson, M., Davies, E., Wang, Z., Weiss, W.:
-An Architecture for Differentiated Services. RFC 2475, IETF (1998)
-\bibitem{containernet} Peuster, M., Karl, H., van Rossem, S.: MeDICINE: Rapid prototyping
-of production-ready network services in multi-PoP environments. In: IEEE NFV-SDN,
-pp. 148--153 (2016)
-\bibitem{mininet} Lantz, B., Heller, B., McKeown, N.: A network in a laptop: rapid
-prototyping for software-defined networks. In: ACM HotNets-IX (2010)
-\bibitem{rfc7665} Halpern, J., Pignataro, C. (eds.): Service Function Chaining (SFC)
-Architecture. RFC 7665, IETF (2015)
-\bibitem{rfc4594} Babiarz, J., Chan, K., Baker, F.: Configuration Guidelines for DiffServ
-Service Classes. RFC 4594, IETF (2006)
-\bibitem{htb} Devera, M.: HTB Linux queuing discipline manual -- user guide (2002),
-\texttt{http://luxik.cdi.cz/\textasciitilde devik/qos/htb/manual/userg.htm}
-\bibitem{rfc3246} Davie, B., et al.: An Expedited Forwarding PHB (Per-Hop Behavior).
-RFC 3246, IETF (2002)
-\bibitem{rfc2597} Heinanen, J., Baker, F., Weiss, W., Wroclawski, J.: Assured Forwarding
-PHB Group. RFC 2597, IETF (1999)
-\bibitem{rfc7679} Almes, G., Kalidindi, S., Zekauskas, M., Morton, A. (ed.): A One-Way
-Delay Metric for IP Performance Metrics (IPPM). RFC 7679, IETF (2016)
-\bibitem{rfc3393} Demichelis, C., Chimento, P.: IP Packet Delay Variation Metric for IP
-Performance Metrics (IPPM). RFC 3393, IETF (2002)
-\bibitem{cole} Cole, R.G., Rosenbluth, J.H.: Voice over IP performance monitoring.
-ACM SIGCOMM Computer Communication Review \textbf{31}(2), 9--24 (2001)
-\bibitem{g107} ITU-T: The E-model: a computational model for use in transmission
-planning. Recommendation G.107 (2015)
-\bibitem{y1541} ITU-T: Network performance objectives for IP-based services.
-Recommendation Y.1541 (2011)
+\begin{thebibliography}{[14}
+\makeatletter\renewcommand\@biblabel[1]{[#1]}\makeatother  % etiquetas [n], como no estilo IEEE
+\bibitem{etsi-nfv} ETSI, ``Network Functions Virtualisation (NFV); Architectural Framework,'' ETSI GS NFV 002 V1.2.1, 2014.
+\bibitem{rfc2475} S. Blake \emph{et al.}, ``An architecture for differentiated services,'' RFC 2475, IETF, 1998.
+\bibitem{containernet} M. Peuster, H. Karl, and S. van Rossem, ``MeDICINE: Rapid prototyping of production-ready network services in multi-PoP environments,'' in \emph{Proc. IEEE NFV-SDN}, 2016, pp. 148--153.
+\bibitem{mininet} B. Lantz, B. Heller, and N. McKeown, ``A network in a laptop: Rapid prototyping for software-defined networks,'' in \emph{Proc. ACM HotNets-IX}, 2010.
+\bibitem{rfc7665} J. Halpern and C. Pignataro, Eds., ``Service function chaining (SFC) architecture,'' RFC 7665, IETF, 2015.
+\bibitem{rfc4594} J. Babiarz, K. Chan, and F. Baker, ``Configuration guidelines for DiffServ service classes,'' RFC 4594, IETF, 2006.
+\bibitem{htb} M. Devera, ``HTB Linux queuing discipline manual -- user guide,'' 2002. [Online]. Available: \texttt{http://luxik.cdi.cz/\textasciitilde devik/qos/htb/manual/userg.htm}
+\bibitem{rfc3246} B. Davie \emph{et al.}, ``An expedited forwarding PHB (per-hop behavior),'' RFC 3246, IETF, 2002.
+\bibitem{rfc2597} J. Heinanen, F. Baker, W. Weiss, and J. Wroclawski, ``Assured forwarding PHB group,'' RFC 2597, IETF, 1999.
+\bibitem{rfc7679} G. Almes, S. Kalidindi, M. Zekauskas, and A. Morton, Ed., ``A one-way delay metric for IP performance metrics (IPPM),'' RFC 7679, IETF, 2016.
+\bibitem{rfc3393} C. Demichelis and P. Chimento, ``IP packet delay variation metric for IP performance metrics (IPPM),'' RFC 3393, IETF, 2002.
+\bibitem{cole} R. G. Cole and J. H. Rosenbluth, ``Voice over IP performance monitoring,'' \emph{ACM SIGCOMM Comput. Commun. Rev.}, vol. 31, no. 2, pp. 9--24, 2001.
+\bibitem{g107} ITU-T, ``The E-model: a computational model for use in transmission planning,'' Rec. G.107, 2015.
+\bibitem{y1541} ITU-T, ``Network performance objectives for IP-based services,'' Rec. Y.1541, 2011.
 \end{thebibliography}
 
 \end{document}

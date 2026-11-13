@@ -116,6 +116,7 @@ class QosNet:
                 node.cmd(f"ethtool -K {intf} tso off gso off gro off 2>/dev/null")
         for vnf in self.vnfs:
             vnf.cmd(f"VNF_NAME={vnf.name} EXPORTER_PORT={EXPORTER_PORT} "
+                    f"EXPORTER_ADDR={self.management_ip(vnf.name)} "
                     "nohup python3 /vnf/exporter.py >/var/log/exporter.log 2>&1 &")
         self.write_prometheus_targets()
         self.set_core()

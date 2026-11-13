@@ -17,6 +17,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 VNF = os.environ.get("VNF_NAME", "vnf")
 PORT = int(os.environ.get("EXPORTER_PORT", "9100"))
+# Endereço onde o exportador escuta: o da interface de gestão, para as métricas
+# não ficarem acessíveis a partir da rede de dados (clientes e servidores).
+ADDRESS = os.environ.get("EXPORTER_ADDR", "0.0.0.0")
 CLASS_NAMES_FILE = "/vnf/tc_class_names"  # linhas "1:10 ef", escritas pela VNF de QoS
 
 
@@ -137,4 +140,4 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    HTTPServer((ADDRESS, PORT), Handler).serve_forever()

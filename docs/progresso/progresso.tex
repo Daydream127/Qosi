@@ -200,8 +200,9 @@ $ sudo make test
 A campanha (\texttt{make experiments}) corre dez cenários, que variam a carga, o
 débito do vídeo, o tráfego não autorizado, as condições da ligação ao núcleo e os
 parâmetros das filas. Os resultados seguintes são da campanha prevista na proposta:
-420~corridas de 60~s, com cinco repetições por ponto. A análise completa fica para o
-relatório final.
+420~corridas de 60~s, com cinco repetições por ponto. O débito TCP inclui cerca de
+2~s iniciais sem tráfego UDP e está sobrestimado em 0,1 a 0,3~Mbit/s. A análise
+completa fica para o relatório final.
 
 \begin{table}[!ht]
 \caption{VoIP e vídeo em concorrência com quatro fluxos TCP no gargalo de 10~Mbit/s
@@ -262,13 +263,11 @@ do tamanho das filas, dos pesos e dos \emph{token buckets}; (ii)~analisar os cen
 de atraso, perdas e falha no núcleo; (iii)~escrever o relatório final e preparar a
 demonstração.
 
-\begin{thebibliography}{3}
-\bibitem{rfc4594} Babiarz, J., Chan, K., Baker, F.: Configuration Guidelines for DiffServ
-Service Classes. RFC 4594, IETF (2006)
-\bibitem{y1541} ITU-T: Network performance objectives for IP-based services.
-Recommendation Y.1541 (2011)
-\bibitem{cole} Cole, R.G., Rosenbluth, J.H.: Voice over IP performance monitoring.
-ACM SIGCOMM Computer Communication Review \textbf{31}(2), 9--24 (2001)
+\begin{thebibliography}{[3}
+\makeatletter\renewcommand\@biblabel[1]{[#1]}\makeatother  % etiquetas [n], como no estilo IEEE
+\bibitem{rfc4594} J. Babiarz, K. Chan, and F. Baker, ``Configuration guidelines for DiffServ service classes,'' RFC 4594, IETF, 2006.
+\bibitem{y1541} ITU-T, ``Network performance objectives for IP-based services,'' Rec. Y.1541, 2011.
+\bibitem{cole} R. G. Cole and J. H. Rosenbluth, ``Voice over IP performance monitoring,'' \emph{ACM SIGCOMM Comput. Commun. Rev.}, vol. 31, no. 2, pp. 9--24, 2001.
 \end{thebibliography}
 
 \end{document}

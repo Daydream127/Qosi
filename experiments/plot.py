@@ -34,7 +34,8 @@ PROFILES = {
 INK, MUTED, GRID = "#0b0b0b", "#52514e", "#d9d8d2"
 
 # Valor crítico do t de Student (95%, bilateral) por graus de liberdade.
-T95 = {1: 12.71, 2: 4.30, 3: 3.18, 4: 2.78, 5: 2.57, 6: 2.45, 7: 2.36, 8: 2.31, 9: 2.26}
+T95 = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306,
+       9: 2.262}
 
 
 # Atraso fixo dos terminais somado ao atraso da rede na estimativa do MOS:

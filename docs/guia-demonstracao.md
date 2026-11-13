@@ -209,6 +209,8 @@ O que cada gráfico mostra:
 | [outage](../results/full/figures/outage.png) | Depois de uma falha de 3 s na ligação ao núcleo, o VoIP volta logo aos 5 ms com a cadeia. Sem QoS, volta aos 100 ms assim que o TCP recupera. |
 | [overhead](../results/full/figures/overhead.png) | Sem o limite de 10 Mbit/s, o encaminhamento direto atinge 8,7 Gbit/s e a cadeia 2,8 Gbit/s. Com carga, a cadeia acrescenta cerca de 0,03 ms de atraso. Sem carga, a diferença perde-se no ruído do despertar do processador. |
 
+Nota sobre o débito TCP: é a média sobre os 62 s do fluxo, que inclui cerca de 2 s iniciais em que o tráfego UDP ainda não arrancou. Por isso está sobrestimado em 0,1 a 0,3 Mbit/s. Onde se lê 0,30 ou 0,34 Mbit/s, o débito real durante a contenção é praticamente nulo; nos outros casos o efeito é de 2 a 3%.
+
 Sem QoS, as perdas de VoIP e de vídeo variam muito de corrida para corrida (barras de erro grandes). É o comportamento esperado de uma fila única com descarte à cauda: quem perde depende do instante em que cada pacote chega à fila cheia.
 
 ## 6. Perguntas prováveis

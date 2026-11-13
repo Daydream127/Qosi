@@ -14,7 +14,7 @@ run: images ; $(PY) topology/run.py --profile $(PROFILE)
 demo: images ; $(PY) topology/run.py --profile baseline --script docs/demo-comandos.txt
 monitoring: ; bash monitoring/start.sh
 monitoring-stop: ; bash monitoring/stop.sh
-experiments: images ; $(PY) experiments/campaign.py --set $(SET)
+experiments: images ; $(PY) experiments/campaign.py --set $(SET) && python3 experiments/plot.py --set $(SET)
 plots: ; python3 experiments/plot.py --set $(SET)
 clean: ; bash scripts/clean.sh
 proposta: ; bash scripts/build-doc.sh docs/proposta/proposta.tex
