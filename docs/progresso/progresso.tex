@@ -24,7 +24,7 @@
 \DefineVerbatimEnvironment{code}{Verbatim}{fontsize=\scriptsize, frame=single,
   framesep=3pt, samepage=true,
   listparameters={\setlength{\topsep}{4pt}\setlength{\partopsep}{0pt}}, rulecolor=\color{black!40}, xleftmargin=1pt, xrightmargin=1pt}
-\graphicspath{{../../results/quick/figures/}{figuras/}}
+\graphicspath{{../../results/full/figures/}{figuras/}}
 
 \begin{document}
 
@@ -39,7 +39,7 @@
 
 \begin{abstract}
 A cadeia de quatro VNFs proposta está implementada e integrada, cada VNF foi testada
-isoladamente e uma primeira campanha de experiências já produz resultados. Este
+isoladamente e a campanha de experiências prevista já foi corrida. Este
 relatório mostra excertos do código, capturas do sistema em funcionamento, os
 resultados iniciais e o que falta fazer.
 \keywords{QoS \and NFV \and VNF \and DiffServ \and Cadeia de serviço}
@@ -50,8 +50,8 @@ resultados iniciais e o que falta fazer.
 O código, a configuração e os resultados estão no repositório Git do grupo:
 \texttt{https://github.com/Daydream127/Qosi}. A Tabela~\ref{tab:estado} compara o
 plano da proposta com o estado atual. As Fases~1 e~2 estão concluídas e a Fase~3 está
-adiantada em relação ao plano: a cadeia já está integrada e a campanha de experiências
-está automatizada.
+adiantada em relação ao plano: a cadeia está integrada e a campanha de experiências
+já foi corrida.
 
 \begin{table}[!ht]
 \caption{Estado do trabalho face ao plano da proposta.}
@@ -68,8 +68,8 @@ Fase & O que está feito & Estado \\
   26~testes automáticos. & Concluída \\
 3 Integração e otimização & Cadeia integrada com cinco perfis; campanha de nove
   cenários; otimização iniciada. & Em curso \\
-4 Análise e relatório & Gráficos e tabela-resumo automáticos. Falta a campanha
-  completa e o relatório final. & Por fazer \\
+4 Análise e relatório & Campanha completa corrida; gráficos e tabela-resumo
+  automáticos. Falta a análise final e o relatório. & Em curso \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -196,17 +196,16 @@ $ sudo make test
 26/26 verificações passaram
 \end{code}
 
-\subsubsection{Primeira campanha de experiências.}
+\subsubsection{Campanha de experiências.}
 A campanha (\texttt{make experiments}) corre nove cenários, que variam a carga, o
 débito do vídeo, o tráfego não autorizado, as condições da ligação ao núcleo e os
-parâmetros das filas. Os resultados seguintes
-são da versão rápida (158~corridas de 15~s, duas repetições por ponto) e servem para
-validar o sistema; a campanha da proposta (60~s, cinco repetições) será corrida para o
+parâmetros das filas. Os resultados seguintes são da campanha prevista na proposta:
+395~corridas de 60~s, com cinco repetições por ponto. A análise completa fica para o
 relatório final.
 
 \begin{table}[!ht]
 \caption{VoIP e vídeo em concorrência com quatro fluxos TCP no gargalo de 10~Mbit/s
-(médias de duas corridas).}
+(médias de cinco corridas).}
 \label{tab:carga}
 \centering
 \footnotesize
@@ -216,10 +215,10 @@ relatório final.
 \cmidrule(lr){2-4}
 Configuração & IPTD p95 & IPDV & IPLR & IPLR & Débito \\
 \midrule
-Sem QoS & 108,8 ms & 5,44 ms & 0,13\% & 0,45\% & 5,95 Mbit/s \\
-Classificação e agendamento & 5,4 ms & 0,09 ms & 0\% & 0\% & 5,48 Mbit/s \\
-Com policiamento & 5,3 ms & 0,09 ms & 0\% & 0\% & 5,62 Mbit/s \\
-Cadeia completa & 5,2 ms & 0,06 ms & 0\% & 0\% & 5,47 Mbit/s \\
+Sem QoS & 108,8 ms & 5,61 ms & 0,52\% & 0,35\% & 5,66 Mbit/s \\
+Classificação e agendamento & 5,3 ms & 0,08 ms & 0\% & 0\% & 5,49 Mbit/s \\
+Com policiamento & 5,4 ms & 0,10 ms & 0\% & 0\% & 5,37 Mbit/s \\
+Cadeia completa & 5,4 ms & 0,09 ms & 0\% & 0\% & 5,43 Mbit/s \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -232,23 +231,23 @@ perdas em VoIP e vídeo, com um custo pequeno no débito TCP.
 \begin{figure}[!ht]
 \centering
 \includegraphics[width=0.72\textwidth]{flood.pdf}
-\caption{Efeito de tráfego UDP não autorizado, enviado por h\_x. As barras de erro vão
-do mínimo ao máximo das duas corridas.}
+\caption{Efeito de tráfego UDP não autorizado, enviado por h\_x. As barras de erro são
+intervalos de confiança de 95\%.}
 \label{fig:flood}
 \end{figure}
 
 O tráfego não autorizado (Fig.~\ref{fig:flood}) mostra o papel de cada VNF. O
 agendamento protege o VoIP e o vídeo, mas o tráfego de h\_x continua a competir com o
 TCP na classe \emph{best effort}; só com a firewall o débito TCP se mantém perto de
-5,7~Mbit/s. Sem QoS, com 12~Mbit/s de tráfego não autorizado, o VoIP perde 33\% dos
-pacotes e o MOS estimado pelo modelo~E simplificado~\cite{cole} desce de 4,3 para 1,9.
+5,5~Mbit/s. Sem QoS, com 12~Mbit/s de tráfego não autorizado, o VoIP perde 61\% dos
+pacotes e o MOS estimado pelo modelo~E simplificado~\cite{cole} desce de 4,3 para 1,3.
 
 Dos restantes cenários, três resultados já são claros. Quando a fonte de vídeo envia
-12~Mbit/s, o policiador limita-a a 5~Mbit/s e o TCP mantém 5,0~Mbit/s; sem QoS, o TCP
-fica com 1,0~Mbit/s e o VoIP perde 44\% dos pacotes. Filas maiores não dão mais débito
+12~Mbit/s, o policiador limita-a a 5~Mbit/s e o TCP mantém 4,5~Mbit/s; sem QoS, o TCP
+fica com 0,3~Mbit/s e o VoIP perde 52\% dos pacotes. Filas maiores não dão mais débito
 ao TCP, mas aumentam o atraso da classe \emph{best effort} (p95 de 44~ms com 20~pacotes
-e de 595~ms com 300). Quanto à sobrecarga, sem o limite de 10~Mbit/s a cadeia encaminha
-cerca de 2,0~Gbit/s, contra 5,6~Gbit/s em encaminhamento direto, e acrescenta menos de
+e de 592~ms com 300). Quanto à sobrecarga, sem o limite de 10~Mbit/s a cadeia encaminha
+cerca de 2,8~Gbit/s, contra 8,7~Gbit/s em encaminhamento direto, e acrescenta menos de
 0,05~ms de atraso.
 
 \section{Dificuldades e próximos passos}
@@ -258,10 +257,10 @@ o relógio de parede, que o WSL2 acerta com saltos, o que falseava atrasos e dé
 corridas longas; passou a usar o relógio monotónico. O \texttt{tc} do Ubuntu~22.04 não
 produz JSON válido para as classes HTB, e o exportador lê a saída em texto.
 
-Até à entrega final falta: (i)~correr a campanha completa, com cinco repetições de
-60~s e intervalos de confiança de 95\%; (ii)~concluir a otimização das filas, dos
-pesos e dos \emph{token buckets}; (iii)~analisar os cenários de atraso, perdas e
-falha no núcleo; (iv)~escrever o relatório final e preparar a demonstração.
+Até à entrega final falta: (i)~concluir a otimização, com a escolha fundamentada
+do tamanho das filas, dos pesos e dos \emph{token buckets}; (ii)~analisar os cenários
+de atraso, perdas e falha no núcleo; (iii)~escrever o relatório final e preparar a
+demonstração.
 
 \begin{thebibliography}{3}
 \bibitem{rfc4594} Babiarz, J., Chan, K., Baker, F.: Configuration Guidelines for DiffServ
