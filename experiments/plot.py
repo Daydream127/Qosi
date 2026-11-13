@@ -37,6 +37,28 @@ INK, MUTED, GRID = "#0b0b0b", "#52514e", "#d9d8d2"
 T95 = {1: 12.71, 2: 4.30, 3: 3.18, 4: 2.78, 5: 2.57, 6: 2.45, 7: 2.36, 8: 2.31, 9: 2.26}
 
 
+# Atraso fixo dos terminais somado ao atraso da rede na estimativa do MOS:
+# 20 ms de empacotamento (G.711) e 40 ms de buffer de compensação de jitter.
+TERMINAL_DELAY_MS = 60.0
+
+
+def mos(owd_ms, loss_ratio):
+    """MOS estimado de uma chamada G.711, pelo modelo E simplificado.
+
+    Cole e Rosenbluth (2001): R = 94,2 - Id - Ie, em que Id penaliza o atraso
+    boca-ouvido d (mais a partir de 177,3 ms) e Ie penaliza as perdas.
+    """
+    delay = owd_ms + TERMINAL_DELAY_MS
+    impairment_delay = 0.024 * delay + (0.11 * (delay - 177.3) if delay > 177.3 else 0.0)
+    impairment_loss = 30 * math.log(1 + 15 * loss_ratio)
+    r = 94.2 - impairment_delay - impairment_loss
+    if r <= 0:
+        return 1.0
+    if r >= 100:
+        return 4.5
+    return 1 + 0.035 * r + 7e-6 * r * (r - 60) * (100 - r)
+
+
 def load(path):
     """{(cenário, perfil, x, fluxo): {métrica: [valores das repetições]}}"""
     data = defaultdict(lambda: defaultdict(list))
@@ -48,6 +70,10 @@ def load(path):
                     data[key][name].append(float(value))
                 except (TypeError, ValueError):
                     pass
+            if row["flow"] == "voip" and row["loss_ratio"]:
+                # Sem pacotes recebidos não há atraso medido; contam só as perdas.
+                data[key]["mos"].append(mos(float(row["owd_ms_mean"] or 0),
+                                            float(row["loss_ratio"])))
     return data
 
 
@@ -151,21 +177,41 @@ def bars(ax, data, experiment, flow, metric, scale=1.0):
 
 
 def figure(panels, path, xlabel, kind=lines, columns=2):
-    """panels: lista de (título do eixo y, argumentos de lines/bars)."""
+    """panels: lista de (título do eixo y, argumentos de lines/bars).
+
+    xlabel é um título comum ou uma lista com um título por painel.
+    """
     rows = math.ceil(len(panels) / columns)
+    xlabels = xlabel if isinstance(xlabel, list) else [xlabel] * len(panels)
     fig, axes = plt.subplots(rows, columns, figsize=(6.4, 2.35 * rows + 0.45), squeeze=False)
-    for ax, (ylabel, args) in zip(axes.flat, panels):
+    for ax, (ylabel, args), label in zip(axes.flat, panels, xlabels):
         kind(ax, *args)
-        style(ax, ylabel, xlabel)
+        style(ax, ylabel, label)
+        if args[3] == "mos":  # a escala do MOS vai de 1 (mau) a 4,5 (excelente)
+            ax.set_ylim(1, 4.6)
     for ax in axes.flat[len(panels):]:
         ax.set_visible(False)
-    handles, labels = axes.flat[0].get_legend_handles_labels()
+    # Legenda comum: cada perfil aparece uma vez, mesmo que falte nalgum painel.
+    entries = {}
+    for ax in axes.flat:
+        for handle, label in zip(*ax.get_legend_handles_labels()):
+            entries.setdefault(label, handle)
+    order = [label for label, _, _ in PROFILES.values() if label in entries]
+    handles, labels = [entries[label] for label in order], order
+    legend_height = 0.0
     if len(labels) > 1:  # com uma só série, o título do eixo chega
-        fig.legend(handles, labels, loc="upper center", ncol=min(4, len(labels)),
+        per_row = len(labels) if len(labels) <= 4 else 3
+        legend_height = 0.12 + 0.2 * math.ceil(len(labels) / per_row)
+        fig.legend(handles, labels, loc="upper center", ncol=per_row,
                    frameon=False, fontsize=8, handlelength=1.6, columnspacing=1.2)
-    fig.tight_layout(rect=(0, 0, 1, 1 - 0.32 / fig.get_figheight() if len(labels) > 1 else 1))
-    for extension in ("pdf", "png"):
-        fig.savefig(f"{path}.{extension}", dpi=200)
+    fig.tight_layout(rect=(0, 0, 1, 1 - legend_height / fig.get_figheight()))
+    save(fig, path)
+
+
+def save(fig, path):
+    """Grava em PDF e PNG. Sem data no PDF, o ficheiro só muda se o gráfico mudar."""
+    fig.savefig(f"{path}.pdf", metadata={"CreationDate": None})
+    fig.savefig(f"{path}.png", dpi=200)
     plt.close(fig)
 
 
@@ -200,14 +246,12 @@ def outage_figure(out_dir, path):
         ax.set_title(label, fontsize=9, color=INK)
         style(ax, "Atraso VoIP (ms)", "Tempo (s)")
     fig.tight_layout()
-    for extension in ("pdf", "png"):
-        fig.savefig(f"{path}.{extension}", dpi=200)
-    plt.close(fig)
+    save(fig, path)
 
 
 def write_summary(data, path):
     metrics = ["loss_ratio", "owd_ms_mean", "owd_ms_p95", "owd_ms_p99", "ipdv_ms_mean",
-               "jitter_rfc3550_ms", "throughput_kbps"]
+               "jitter_rfc3550_ms", "throughput_kbps", "mos"]
     with open(path, "w", newline="") as handle:
         writer = csv.writer(handle)
         writer.writerow(["experiment", "profile", "x", "flow", "runs"]
@@ -277,6 +321,14 @@ def main():
                path("overhead"), "", kind=bars)
     if "outage" in experiments:
         outage_figure(out_dir, path("outage"))
+    with_mos = [(name, label) for name, label in (
+        ("load", "Fluxos TCP em concorrência"),
+        ("policing", "Débito da fonte de vídeo (Mbit/s)"),
+        ("flood", "Tráfego não autorizado (Mbit/s)"),
+        ("delay", "Atraso na ligação ao núcleo (ms)")) if name in experiments]
+    if with_mos:
+        figure([("MOS estimado (VoIP)", (data, name, "voip", "mos")) for name, _ in with_mos],
+               path("mos"), [label for _, label in with_mos])
 
     write_summary(data, os.path.join(out_dir, "summary.csv"))
     print(f"figuras em {figures}")

@@ -12,7 +12,8 @@ Sem mais opções, abre a consola do Mininet. Por exemplo:
 
 Com --demo N, em vez da consola gera durante N segundos a mistura de tráfego
 dos testes (VoIP, vídeo e quatro fluxos TCP) e mostra as métricas no fim. É
-útil para ver o dashboard do Grafana a mexer.
+útil para ver o dashboard do Grafana a mexer; com --stress, o policiador e a
+firewall também têm tráfego para descartar.
 """
 import argparse
 import os
@@ -21,15 +22,20 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from qosnet import DEFAULT_CONFIG, QosNet, load_config  # noqa: E402
-from flows import VIDEO, VOIP, TcpFlow, UdpFlow  # noqa: E402
+from flows import FLOOD_PORT, VIDEO, VOIP, TcpFlow, UdpFlow  # noqa: E402
 from mininet.cli import CLI  # noqa: E402
 from mininet.log import setLogLevel  # noqa: E402
 
 
-def demo(qos, duration):
+def demo(qos, duration, stress=False):
     bulk = TcpFlow(qos, "h_bulk", "srv_bulk", duration=duration, streams=4)
     voip = UdpFlow(qos, "h_voip", "srv_voip", duration=duration, **VOIP)
-    video = UdpFlow(qos, "h_video", "srv_video", duration=duration, **VIDEO)
+    # Com stress, o vídeo passa de 4 para 6 Mbit/s (acima do perfil de 5 Mbit/s)
+    # e h_x, que não está autorizado, envia 2 Mbit/s.
+    video = UdpFlow(qos, "h_video", "srv_video", duration=duration,
+                    **dict(VIDEO, pps=600 if stress else VIDEO["pps"]))
+    flood = UdpFlow(qos, "h_x", "srv_bulk", port=FLOOD_PORT, pps=200, size=1222,
+                    duration=duration) if stress else None
     for name, flow in (("VoIP", voip), ("vídeo", video)):
         r = flow.result()
         print(f"{name:6} OWD média {r['owd_ms_mean']} ms, p95 {r['owd_ms_p95']} ms, "
@@ -37,6 +43,9 @@ def demo(qos, duration):
               f"débito {r['throughput_kbps']} kbit/s, "
               f"maior intervalo entre chegadas {r['rx_gap_ms_max']} ms")
     print(f"TCP    débito {bulk.result()['throughput_kbps']} kbit/s")
+    if flood:
+        r = flood.result()
+        print(f"h_x    {r.get('sent')} pacotes enviados, {r.get('received')} entregues")
 
 
 def main():
@@ -47,6 +56,8 @@ def main():
                         help="perfil definido em config/chain.yaml (baseline, sched, police, full)")
     parser.add_argument("--demo", type=int, metavar="N",
                         help="gera tráfego durante N segundos em vez de abrir a consola")
+    parser.add_argument("--stress", action="store_true",
+                        help="com --demo: junta vídeo acima do perfil e tráfego não autorizado")
     args = parser.parse_args()
 
     setLogLevel("info" if args.demo is None else "warning")
@@ -56,7 +67,7 @@ def main():
         if args.demo is None:
             CLI(qos.net)
         else:
-            demo(qos, args.demo)
+            demo(qos, args.demo, args.stress)
     finally:
         qos.stop()
 
