@@ -11,3 +11,4 @@ Dockerfile text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
 *.json text eol=lf
+docs/demo-comandos.txt text eol=lf
