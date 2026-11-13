@@ -179,7 +179,7 @@ def main():
     new_file = not os.path.exists(csv_path)
 
     setLogLevel("warning")
-    count = 0
+    count, failed = 0, []
     with open(csv_path, "a", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=COLUMNS, extrasaction="ignore")
         if new_file:
@@ -207,7 +207,12 @@ def main():
                     packets_path = os.path.join(
                         out_dir, "packets",
                         f"{spec['experiment']}-{spec['profile']}-{spec['x']}-{rep}.csv")
-                    results = run_point(qos, spec, settings["duration"], packets_path)
+                    try:
+                        results = run_point(qos, spec, settings["duration"], packets_path)
+                    except Exception as error:  # uma corrida falhada não pára a campanha
+                        failed.append(label)
+                        print(f"  FALHOU: {error}", flush=True)
+                        continue
                     for flow, metrics in results.items():
                         writer.writerow({**metrics, "flow": flow, "rep": rep,
                                          "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -218,6 +223,9 @@ def main():
             finally:
                 qos.stop()
     print(f"resultados em {csv_path}")
+    if failed:  # não ficaram gravadas: basta voltar a correr a campanha
+        print(f"{len(failed)} corridas falharam e ficam por repetir: " + ", ".join(failed))
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -102,9 +102,12 @@ def receive(args):
             continue
         samples.append((seq, (now_ns - value) / 1e6))
         sent_at.append(value)
-        received_bytes += len(data) + IP_UDP_OVERHEAD
-        first_rx = first_rx or now_ns
-        if last_rx is not None:
+        if first_rx is None:
+            # O primeiro pacote só marca o início do intervalo de medição do
+            # débito: N pacotes ocupam N-1 intervalos entre chegadas.
+            first_rx = now_ns
+        else:
+            received_bytes += len(data) + IP_UDP_OVERHEAD
             max_gap_ns = max(max_gap_ns, now_ns - last_rx)
         last_rx = now_ns
 
