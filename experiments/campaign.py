@@ -33,7 +33,8 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "topology"))
 
 from qosnet import ROOT, QosNet, load_config  # noqa: E402
-from flows import BE_PROBE, FLOOD_PORT, VIDEO, VOIP, TcpFlow, UdpFlow  # noqa: E402
+from flows import (BE_PROBE, FLOOD_PORT, VIDEO, VOIP, UdpFlow,  # noqa: E402
+                   tcp_with_udp, udp_window_end)
 from mininet.log import setLogLevel  # noqa: E402
 
 SETS = {"smoke": {"duration": 5, "reps": 1},     # só para testar a própria campanha
@@ -126,10 +127,11 @@ def run_point(qos, spec, duration, packets_path):
         qos[host].cmd("pkill udpgen; pkill -f 'iperf3 -c'; rm -f /tmp/udp-* /tmp/tcp-*")
 
     flows = {}
+    tcp = None
     if spec["tcp_streams"]:
-        flows["bulk"] = TcpFlow(qos, "h_bulk", "srv_bulk", duration=duration + 2,
-                                streams=spec["tcp_streams"])
-        time.sleep(1.5)  # deixa o TCP encher a fila antes de medir
+        # Arranca primeiro, para a fila já estar cheia quando os fluxos UDP começam.
+        tcp = flows["bulk"] = tcp_with_udp(qos, "h_bulk", "srv_bulk", duration,
+                                           spec["tcp_streams"])
     if spec["flood_mbit"]:
         flows["flood"] = UdpFlow(qos, "h_x", "srv_bulk", port=FLOOD_PORT, size=VIDEO["size"],
                                  pps=spec["flood_mbit"] * 1e6 / VIDEO_PACKET_BITS,
@@ -145,12 +147,19 @@ def run_point(qos, spec, duration, packets_path):
     if spec["be_probe"]:
         flows["be_probe"] = UdpFlow(qos, "h_bulk", "srv_bulk", duration=duration, **BE_PROBE)
 
+    # O débito TCP só é medido enquanto todos os fluxos UDP estão presentes.
+    udp_flows = [flow for flow in flows.values() if flow is not tcp]
+    if tcp:
+        tcp.start_window()
+
     if spec["outage_s"]:  # falha da ligação ao núcleo a meio da corrida
         time.sleep(duration / 2)
         qos.set_core(loss=100)
         time.sleep(spec["outage_s"])
         qos.set_core(**spec["core"])
 
+    if tcp:
+        tcp.end_window(at=udp_window_end(udp_flows))
     results = {name: flow.result() for name, flow in flows.items()}
     if spec["packets"] and "voip" in flows:
         flows["voip"].save_packets(packets_path)

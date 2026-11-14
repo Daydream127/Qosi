@@ -17,7 +17,7 @@ import urllib.request
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "topology"))
 
 from qosnet import EXPORTER_PORT, QosNet  # noqa: E402
-from flows import VIDEO, VOIP, TcpFlow, UdpFlow  # noqa: E402
+from flows import VIDEO, VOIP, TcpFlow, UdpFlow, tcp_with_udp, udp_window_end  # noqa: E402
 from mininet.log import setLogLevel  # noqa: E402
 
 # Combinações de VNFs ativas usadas nos testes.
@@ -131,10 +131,12 @@ def test_policer(qos):
 
 def congestion(qos, duration=10):
     """VoIP e vídeo em concorrência com quatro fluxos TCP no gargalo de 10 Mbit/s."""
-    bulk = TcpFlow(qos, "h_bulk", "srv_bulk", duration=duration + 2, streams=4)
-    time.sleep(1.5)  # deixa o TCP encher a fila antes de medir
+    bulk = tcp_with_udp(qos, "h_bulk", "srv_bulk", duration, streams=4)
     voip = UdpFlow(qos, "h_voip", "srv_voip", duration=duration, **VOIP)
     video = UdpFlow(qos, "h_video", "srv_video", duration=duration, **VIDEO)
+    # O débito TCP só é medido enquanto o VoIP e o vídeo estão presentes.
+    bulk.start_window()
+    bulk.end_window(at=udp_window_end([voip, video]))
     return voip.result(), video.result(), bulk.result()
 
 

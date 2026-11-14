@@ -27,13 +27,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from qosnet import DEFAULT_CONFIG, QosNet, load_config  # noqa: E402
-from flows import FLOOD_PORT, VIDEO, VOIP, TcpFlow, UdpFlow  # noqa: E402
+from flows import FLOOD_PORT, VIDEO, VOIP, UdpFlow, tcp_with_udp, udp_window_end  # noqa: E402
 from mininet.cli import CLI  # noqa: E402
 from mininet.log import setLogLevel  # noqa: E402
 
 
 def demo(qos, duration, stress=False):
-    bulk = TcpFlow(qos, "h_bulk", "srv_bulk", duration=duration, streams=4)
+    bulk = tcp_with_udp(qos, "h_bulk", "srv_bulk", duration, streams=4)
     voip = UdpFlow(qos, "h_voip", "srv_voip", duration=duration, **VOIP)
     # Com stress, o vídeo passa de 4 para 6 Mbit/s (acima do perfil de 5 Mbit/s)
     # e h_x, que não está autorizado, envia 2 Mbit/s.
@@ -41,6 +41,9 @@ def demo(qos, duration, stress=False):
                     **dict(VIDEO, pps=600 if stress else VIDEO["pps"]))
     flood = UdpFlow(qos, "h_x", "srv_bulk", port=FLOOD_PORT, pps=200, size=1222,
                     duration=duration) if stress else None
+    # O débito TCP só é medido enquanto os fluxos UDP estão presentes.
+    bulk.start_window()
+    bulk.end_window(at=udp_window_end([flow for flow in (voip, video, flood) if flow]))
     for name, flow in (("VoIP", voip), ("vídeo", video)):
         r = flow.result()
         print(f"{name:6} OWD média {r['owd_ms_mean']} ms, p95 {r['owd_ms_p95']} ms, "
