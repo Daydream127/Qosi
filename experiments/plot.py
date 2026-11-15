@@ -133,6 +133,8 @@ def style(ax, ylabel, xlabel=None):
     if xlabel:
         ax.set_xlabel(xlabel, color=INK)
     ax.set_ylim(bottom=0)
+    # Folga por cima: sem ela, uma série quase constante fica colada ao limite do eixo.
+    ax.set_ylim(top=max(ax.get_ylim()[1], ax.dataLim.y1 * 1.08))
     ax.grid(axis="y", color=GRID, linewidth=0.5)
     ax.set_axisbelow(True)
     for side in ("top", "right"):

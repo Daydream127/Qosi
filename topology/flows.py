@@ -87,9 +87,13 @@ class TcpFlow:
         self.started = time.monotonic()
 
     def _sample(self):
-        """(instante, bytes confirmados pelo recetor, somados sobre as ligações)."""
+        """(instante, bytes confirmados pelo recetor, somados sobre as ligações).
+
+        Só contam as ligações abertas (established): as de uma corrida anterior
+        que ainda estejam a fechar ficam de fora.
+        """
         before = time.monotonic()
-        text = self.client.cmd(f"ss -tin 'dport = :{self.port}'")
+        text = self.client.cmd(f"ss -tin state established 'dport = :{self.port}'")
         acked = sum(int(value) for value in re.findall(r"bytes_acked:(\d+)", text))
         return (before + time.monotonic()) / 2, acked
 
@@ -143,6 +147,24 @@ def udp_window_end(udp_flows):
     """Instante em que deve acabar a medição do TCP: meio segundo antes de o
     primeiro fluxo UDP terminar, para todo o tráfego UDP estar ainda presente."""
     return min(flow.started + flow.duration for flow in udp_flows) - 0.5
+
+
+def stop_traffic(qos, hosts, tcp_client="h_bulk", timeout=30):
+    """Pára os geradores de tráfego e espera que as ligações TCP antigas fechem.
+
+    Quando o TCP fica sem débito, o iperf3 termina com dados por enviar e o
+    núcleo continua a retransmiti-los depois de o processo sair. Sem esta
+    espera, essas ligações ainda estariam ativas na corrida seguinte. Devolve
+    o tempo de espera, em segundos.
+    """
+    for host in hosts:
+        qos[host].cmd("pkill udpgen; pkill -9 iperf3; rm -f /tmp/udp-* /tmp/tcp-*")
+    started = time.monotonic()
+    # "big" exclui as entradas em TIME-WAIT, que já não transportam dados.
+    while time.monotonic() - started < timeout and \
+            qos[tcp_client].cmd(f"ss -Htn state big 'dport = :{BULK_PORT}'").strip():
+        time.sleep(0.5)
+    return round(time.monotonic() - started, 1)
 
 
 def _read_json(node, path):

@@ -189,10 +189,10 @@ $ sudo make test
 === VNF2 Firewall: controlo de acesso
   [OK] h_x: UDP bloqueado  (0 pacotes recebidos)
 === VNF3 Policer: token bucket por classe (EF contratado a 200 kbit/s)
-  [OK] VoIP a 400 kbit/s é limitado a cerca de 200 kbit/s  (216.3 kbit/s, perdas 46%)
+  [OK] VoIP a 400 kbit/s é limitado a cerca de 200 kbit/s  (216.0 kbit/s, perdas 46%)
 === VNF3 Scheduler: congestionamento com e sem agendamento
-  sem QoS:  VoIP OWD p95 110.812 ms, perdas 0.20% | vídeo perdas 0.38% | TCP 5834.4 kbit/s
-  com HTB:  VoIP OWD p95 5.346 ms, perdas 0.00% | vídeo perdas 0.00% | TCP 5894.8 kbit/s
+  sem QoS:  VoIP OWD p95 110.751 ms, perdas 1.20% | vídeo perdas 0.35% | TCP 5706.1 kbit/s
+  com HTB:  VoIP OWD p95 5.558 ms, perdas 0.00% | vídeo perdas 0.00% | TCP 5636.5 kbit/s
 26/26 verificações passaram
 \end{code}
 
@@ -200,9 +200,8 @@ $ sudo make test
 A campanha (\texttt{make experiments}) corre dez cenários, que variam a carga, o
 débito do vídeo, o tráfego não autorizado, as condições da ligação ao núcleo e os
 parâmetros das filas. Os resultados seguintes são da campanha prevista na proposta:
-420~corridas de 60~s, com cinco repetições por ponto. O débito TCP inclui cerca de
-2~s iniciais sem tráfego UDP e está sobrestimado em 0,1 a 0,3~Mbit/s. A análise
-completa fica para o relatório final.
+420~corridas de 60~s, com cinco repetições por ponto. O débito TCP é medido só enquanto
+os fluxos UDP estão presentes, a partir dos \emph{bytes} confirmados pelo recetor.
 
 \begin{table}[!ht]
 \caption{VoIP e vídeo em concorrência com quatro fluxos TCP no gargalo de 10~Mbit/s
@@ -216,10 +215,10 @@ completa fica para o relatório final.
 \cmidrule(lr){2-4}
 Configuração & IPTD p95 & IPDV & IPLR & IPLR & Débito \\
 \midrule
-Sem QoS & 108,8 ms & 5,61 ms & 0,52\% & 0,35\% & 5,66 Mbit/s \\
-Classificação e agendamento & 5,3 ms & 0,08 ms & 0\% & 0\% & 5,49 Mbit/s \\
-Com policiamento & 5,4 ms & 0,10 ms & 0\% & 0\% & 5,37 Mbit/s \\
-Cadeia completa & 5,4 ms & 0,09 ms & 0\% & 0\% & 5,43 Mbit/s \\
+Sem QoS & 108,5 ms & 5,55 ms & 0,33\% & 0,40\% & 5,60 Mbit/s \\
+Classificação e agendamento & 5,5 ms & 0,13 ms & 0\% & 0\% & 5,58 Mbit/s \\
+Com policiamento & 5,7 ms & 0,17 ms & 0\% & 0\% & 5,58 Mbit/s \\
+Cadeia completa & 5,4 ms & 0,11 ms & 0\% & 0\% & 5,58 Mbit/s \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -227,11 +226,11 @@ Cadeia completa & 5,4 ms & 0,09 ms & 0\% & 0\% & 5,43 Mbit/s \\
 Sem QoS, a fila única do gargalo enche com tráfego TCP e o atraso do VoIP passa o
 objetivo de 100~ms da classe~0 da Y.1541~\cite{y1541} (Tabela~\ref{tab:carga}). Com classificação e
 agendamento, o atraso do VoIP fica reduzido ao atraso do núcleo (5~ms) e deixa de haver
-perdas em VoIP e vídeo, com um custo pequeno no débito TCP.
+perdas em VoIP e vídeo, sem reduzir o débito TCP.
 
 \begin{figure}[!ht]
 \centering
-\includegraphics[width=0.9\textwidth]{flood.pdf}
+\includegraphics[width=0.86\textwidth]{flood.pdf}
 \caption{Efeito de tráfego UDP não autorizado, enviado por h\_x. As barras de erro são
 intervalos de confiança de 95\%.}
 \label{fig:flood}
@@ -240,15 +239,15 @@ intervalos de confiança de 95\%.}
 O tráfego não autorizado (Fig.~\ref{fig:flood}) mostra o papel de cada VNF. O
 agendamento protege o VoIP e o vídeo, mas o tráfego de h\_x continua a competir com o
 TCP na classe \emph{best effort}; só com a firewall o débito TCP se mantém perto de
-5,5~Mbit/s. Sem QoS, com 12~Mbit/s de tráfego não autorizado, o VoIP perde 61\% dos
-pacotes e o MOS estimado pelo modelo~E simplificado~\cite{cole} desce de 4,3 para 1,3.
+5,6~Mbit/s. Sem QoS, com 12~Mbit/s de tráfego não autorizado, o VoIP perde 62\% dos
+pacotes e o MOS estimado pelo modelo~E simplificado~\cite{cole} desce de 4,3 para 1,4.
 
 Dos restantes cenários, três resultados já são claros. Quando a fonte de vídeo envia
-12~Mbit/s, o policiador limita-a a 5~Mbit/s e o TCP mantém 4,5~Mbit/s; sem QoS, o TCP
-fica com 0,3~Mbit/s e o VoIP perde 52\% dos pacotes. Filas maiores não dão mais débito
+12~Mbit/s, o policiador limita-a a 5~Mbit/s e o TCP mantém 4,6~Mbit/s; sem QoS, o TCP
+fica sem débito e o VoIP perde 38\% dos pacotes. Filas maiores não dão mais débito
 ao TCP, mas aumentam o atraso da classe \emph{best effort} (p95 de 44~ms com 20~pacotes
 e de 592~ms com 300). Quanto à sobrecarga, sem o limite de 10~Mbit/s a cadeia encaminha
-cerca de 2,8~Gbit/s, contra 8,7~Gbit/s em encaminhamento direto, e acrescenta menos de
+cerca de 3,3~Gbit/s, contra 9,2~Gbit/s em encaminhamento direto, e acrescenta menos de
 0,05~ms de atraso.
 
 \section{Dificuldades e próximos passos}

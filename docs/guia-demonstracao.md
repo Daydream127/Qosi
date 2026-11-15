@@ -77,7 +77,7 @@ profile full
 traffic 20
 ```
 
-O que se vê: cada VNF anuncia que ficou ativa. O atraso p95 do VoIP passa para cerca de 5 ms (o atraso do núcleo), sem perdas em VoIP e vídeo, e o TCP continua com perto de 5 Mbit/s.
+O que se vê: cada VNF anuncia que ficou ativa. O atraso p95 do VoIP passa para cerca de 5 ms (o atraso do núcleo), sem perdas em VoIP e vídeo, e o TCP continua com perto de 5,6 Mbit/s.
 
 O que dizer: a topologia é a mesma; só mudou a configuração das VNFs. O classificador marca o VoIP como EF, e o scheduler serve essa classe primeiro.
 
@@ -188,28 +188,28 @@ O resultado principal, com VoIP, vídeo e quatro fluxos TCP no gargalo de 10 Mbi
 
 | Configuração | Atraso VoIP (p95) | IPDV VoIP | Perdas VoIP | Perdas vídeo | Débito TCP |
 |---|---|---|---|---|---|
-| Sem QoS | 108,8 ms | 5,6 ms | 0,52% | 0,35% | 5,66 Mbit/s |
-| Agendamento | 5,3 ms | 0,08 ms | 0% | 0% | 5,49 Mbit/s |
-| Agendamento e policiamento | 5,4 ms | 0,10 ms | 0% | 0% | 5,37 Mbit/s |
-| Cadeia completa | 5,4 ms | 0,09 ms | 0% | 0% | 5,43 Mbit/s |
+| Sem QoS | 108,5 ms | 5,6 ms | 0,33% | 0,40% | 5,60 Mbit/s |
+| Agendamento | 5,5 ms | 0,13 ms | 0% | 0% | 5,58 Mbit/s |
+| Agendamento e policiamento | 5,7 ms | 0,17 ms | 0% | 0% | 5,58 Mbit/s |
+| Cadeia completa | 5,4 ms | 0,11 ms | 0% | 0% | 5,58 Mbit/s |
 
 O que cada gráfico mostra:
 
 | Gráfico | Mensagem |
 |---|---|
-| [load](../results/full/figures/load.png) | Com QoS, o VoIP e o vídeo ficam isolados da carga: o atraso mantém-se em 5 ms com 1 ou com 8 fluxos TCP. O custo para o TCP é pequeno. |
-| [policing](../results/full/figures/policing.png) | Com a fonte de vídeo a enviar 12 Mbit/s e sem QoS, o TCP fica com 0,34 Mbit/s e o VoIP perde 52% dos pacotes. O policiador limita o vídeo a 5,0 Mbit/s e o TCP mantém 4,5 Mbit/s. Só com policiamento, sem agendamento, o débito fica protegido mas o atraso do VoIP continua em 107 ms: são precisos os dois. |
-| [flood](../results/full/figures/flood.png) | Com 12 Mbit/s de tráfego não autorizado, o agendamento protege o VoIP e o vídeo, mas o TCP fica com 0,30 Mbit/s. Só com a firewall o TCP mantém 5,5 Mbit/s. |
-| [mos](../results/full/figures/mos.png) | Com a cadeia, o MOS estimado do VoIP é sempre 4,4. Sem QoS desce para 1,5 com vídeo fora do perfil e para 1,3 com tráfego não autorizado. |
-| [queue](../results/full/figures/queue.png) | Otimização: filas maiores não dão mais débito ao TCP e aumentam o atraso da classe best effort (p95 de 44 ms com 20 pacotes, 592 ms com 300). O VoIP não é afetado. |
-| [weights](../results/full/figures/weights.png) | Otimização: com vídeo a 6 Mbit/s, garantir só 3 Mbit/s a AF31 dá 35% de perdas no vídeo; com 5 Mbit/s dá 2,2% e com 7 Mbit/s nenhuma, à custa do TCP (5,6, 3,8 e 3,6 Mbit/s). |
+| [load](../results/full/figures/load.png) | Com QoS, o VoIP e o vídeo ficam isolados da carga: o atraso mantém-se em 5 ms com 1 ou com 8 fluxos TCP. O TCP mantém o débito (5,58 contra 5,60 Mbit/s); o custo está no atraso da classe best effort, que sobe de 109 para 198 ms. |
+| [policing](../results/full/figures/policing.png) | Com a fonte de vídeo a enviar 12 Mbit/s e sem QoS, o TCP fica praticamente sem débito (0,02 Mbit/s) e o VoIP perde 38% dos pacotes. O policiador limita o vídeo a 5,0 Mbit/s e o TCP mantém 4,6 Mbit/s. Só com policiamento, sem agendamento, o débito fica protegido mas o atraso do VoIP continua em 107 ms: são precisos os dois. |
+| [flood](../results/full/figures/flood.png) | Com 12 Mbit/s de tráfego não autorizado, o agendamento protege o VoIP e o vídeo, mas o TCP fica sem débito (0,01 Mbit/s). Só com a firewall o TCP mantém 5,6 Mbit/s. |
+| [mos](../results/full/figures/mos.png) | Com a cadeia, o MOS estimado do VoIP é sempre 4,4. Sem QoS desce para 1,8 com vídeo fora do perfil e para 1,4 com tráfego não autorizado. |
+| [queue](../results/full/figures/queue.png) | Otimização: filas maiores não dão mais débito ao TCP (5,58 Mbit/s em todos os casos) e aumentam o atraso da classe best effort (p95 de 44 ms com 20 pacotes, 592 ms com 300). O VoIP não é afetado. |
+| [weights](../results/full/figures/weights.png) | Otimização: com vídeo a 6 Mbit/s, garantir só 3 Mbit/s a AF31 dá 35% de perdas no vídeo; com 5 Mbit/s dá 2,2% e com 7 Mbit/s nenhuma, à custa do TCP (5,7, 3,8 e 3,6 Mbit/s). |
 | [bucket](../results/full/figures/bucket.png) | Otimização: com o vídeo dentro do perfil mas em rajadas de 20 kB (um frame), um balde de 5 kB no policiador descarta 75% dos pacotes e um de 10 kB descarta 50%; a partir de 20 kB não há perdas. O balde tem de comportar a maior rajada legítima. |
-| [delay](../results/full/figures/delay.png) | A cadeia não elimina o atraso do núcleo, mas retira-lhe o atraso da fila: com 100 ms no núcleo, o VoIP tem 100 ms (p95) com a cadeia e 202 ms sem ela. |
+| [delay](../results/full/figures/delay.png) | A cadeia não elimina o atraso do núcleo, mas retira-lhe o atraso da fila: com 100 ms no núcleo, o VoIP tem 100 ms (p95) com a cadeia e 203 ms sem ela. |
 | [loss](../results/full/figures/loss.png) | As perdas no núcleo acontecem depois da cadeia e afetam todas as configurações por igual: o QoS no acesso não as corrige. |
 | [outage](../results/full/figures/outage.png) | Depois de uma falha de 3 s na ligação ao núcleo, o VoIP volta logo aos 5 ms com a cadeia. Sem QoS, volta aos 100 ms assim que o TCP recupera. |
-| [overhead](../results/full/figures/overhead.png) | Sem o limite de 10 Mbit/s, o encaminhamento direto atinge 8,7 Gbit/s e a cadeia 2,8 Gbit/s. Com carga, a cadeia acrescenta cerca de 0,03 ms de atraso. Sem carga, a diferença perde-se no ruído do despertar do processador. |
+| [overhead](../results/full/figures/overhead.png) | Sem o limite de 10 Mbit/s, o encaminhamento direto atinge 9,2 Gbit/s e a cadeia 3,3 Gbit/s. Com carga, a cadeia acrescenta cerca de 0,03 ms de atraso. Sem carga, a diferença perde-se no ruído do despertar do processador. |
 
-Nota sobre o débito TCP: é a média sobre os 62 s do fluxo, que inclui cerca de 2 s iniciais em que o tráfego UDP ainda não arrancou. Por isso está sobrestimado em 0,1 a 0,3 Mbit/s. Onde se lê 0,30 ou 0,34 Mbit/s, o débito real durante a contenção é praticamente nulo; nos outros casos o efeito é de 2 a 3%.
+Nota sobre o débito TCP: é medido só enquanto todos os fluxos UDP estão presentes, a partir dos bytes confirmados pelo recetor (o contador `bytes_acked` do núcleo, lido com `ss` no cliente). É, portanto, débito útil, sem cabeçalhos nem retransmissões. Antes de cada corrida, a campanha espera que as ligações TCP da corrida anterior fechem, para não as contar.
 
 Sem QoS, as perdas de VoIP e de vídeo variam muito de corrida para corrida (barras de erro grandes). É o comportamento esperado de uma fila única com descarte à cauda: quem perde depende do instante em que cada pacote chega à fila cheia.
 
@@ -222,7 +222,7 @@ Na saída da VNF3, limitada a 10 Mbit/s. As outras ligações são virtuais e mu
 A fila tem 100 pacotes. Cheia de pacotes TCP de 1500 bytes, demora 100 × 1500 × 8 / 10 Mbit/s = 120 ms a esvaziar. Um pacote VoIP que chega ao fim da fila espera quase isso, mais os 5 ms do núcleo.
 
 **Porque é que o TCP não fica sem débito com o agendamento?**
-A classe BE tem 4 Mbit/s garantidos e pode usar o que as outras não usam. Com VoIP e vídeo dentro do perfil sobram quase 6 Mbit/s, e o TCP obtém cerca de 5,4.
+A classe BE tem 4 Mbit/s garantidos e pode usar o que as outras não usam. Com VoIP e vídeo dentro do perfil sobram quase 6 Mbit/s, e o TCP obtém cerca de 5,6.
 
 **Porque é que EF está limitada a 1 Mbit/s?**
 Uma classe com prioridade absoluta e sem limite pode deixar as outras sem serviço. O limite de 1 Mbit/s no scheduler e o policiador de 200 kbit/s à entrada garantem que isso não acontece.
@@ -237,7 +237,7 @@ Emissor e recetor são contentores na mesma máquina e leem o mesmo relógio mon
 Com 110 ms de atraso e perdas abaixo de 1%, uma chamada ainda é boa: o modelo E só penaliza muito o atraso acima de 177 ms. O MOS cai a sério quando há perdas grandes, como nos cenários de vídeo fora do perfil e de tráfego não autorizado.
 
 **Quanto custa a cadeia?**
-Sem o limite de 10 Mbit/s, o débito máximo desce de 8,7 Gbit/s (encaminhamento direto) para 2,8 Gbit/s, e o atraso sobe cerca de 0,03 ms. Para um gargalo de 10 Mbit/s, o custo é desprezável. Os valores absolutos dependem da máquina.
+Sem o limite de 10 Mbit/s, o débito máximo desce de 9,2 Gbit/s (encaminhamento direto) para 3,3 Gbit/s, e o atraso sobe cerca de 0,03 ms. Para um gargalo de 10 Mbit/s, o custo é desprezável. Os valores absolutos dependem da máquina.
 
 **Como se troca a ordem das VNFs ou se acrescenta uma?**
 Edita-se a lista `chain` em `config/chain.yaml`. Os endereços e as rotas são gerados a partir da lista. Uma VNF nova é uma pasta em `vnfs/` com um `Dockerfile` e um script `start`.

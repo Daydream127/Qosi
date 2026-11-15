@@ -49,7 +49,7 @@ controlo de acesso, policiamento, agendamento e monitorização. O sistema corre
 uma topologia emulada com um gargalo de 10~Mbit/s e é avaliado com tráfego VoIP, de
 vídeo e de dados em massa, numa campanha automática de 420~corridas. Com a cadeia
 ativa, o atraso do VoIP desce de 109~ms para 5~ms e deixam de existir perdas em VoIP e
-vídeo, com um custo de 4\% no débito TCP. O relatório quantifica ainda o contributo de
+vídeo, sem reduzir o débito TCP. O relatório quantifica ainda o contributo de
 cada VNF, os compromissos da otimização e a sobrecarga da virtualização.
 \keywords{QoS \and NFV \and VNF \and DiffServ \and Cadeia de serviço \and Token bucket \and HTB}
 \end{abstract}
@@ -377,10 +377,10 @@ Sobrecarga & Sem gargalo: encaminhamento direto ou pela cadeia & direto, \texttt
 
 Cada ponto é medido em cinco corridas independentes de 60~s, num total de
 420~corridas e cerca de oito horas. Os fluxos TCP arrancam 1,5~s antes dos restantes,
-para a fila já estar cheia quando a medição começa. O débito TCP é a média sobre toda
-a duração do fluxo, que inclui esses instantes sem tráfego UDP: fica sobrestimado em
-0,1 a 0,3~Mbit/s e, onde se lê cerca de 0,3~Mbit/s, o débito durante a contenção é
-praticamente nulo. Os gráficos mostram a média das
+para a fila já estar cheia quando a medição começa. O débito TCP é medido só enquanto
+todos os fluxos UDP estão presentes, a partir dos \emph{bytes} confirmados pelo
+recetor (o contador \texttt{bytes\_acked} do núcleo, lido no cliente no início e no
+fim desse intervalo); é, portanto, débito útil. Os gráficos mostram a média das
 cinco corridas e o intervalo de confiança de 95\%, calculado com a distribuição $t$ de
 Student. Um único comando (\texttt{make experiments SET=full}) corre a campanha, que
 pode ser interrompida e retomada, e gera os gráficos e a tabela-resumo a partir do
@@ -409,9 +409,9 @@ Tabela~\ref{tab:carga} detalha o ponto com quatro fluxos. Sem QoS, basta um flux
 para encher a fila única do gargalo. O atraso do VoIP sobe de 5~ms para 109~ms, o
 valor previsto pela configuração: uma fila de 100~pacotes de 1500~B demora $100
 \times 1500 \times 8 / 10^7 = 120$~ms a esvaziar a 10~Mbit/s. Os objetivos da classe~0
-da Y.1541 deixam de ser cumpridos: o atraso médio fica entre 94 e 102~ms, no limite
-dos 100~ms, e as perdas do VoIP (entre 0,3\% e 1,1\%) excedem $10^{-3}$. A amplitude
-do atraso, medida entre o mínimo e o percentil~99, anda entre 33 e 55~ms.
+da Y.1541 deixam de ser cumpridos: o atraso médio fica entre 94 e 103~ms, no limite
+dos 100~ms, e as perdas do VoIP (entre 0,2\% e 1,6\%) excedem $10^{-3}$. A amplitude
+do atraso, medida entre o mínimo e o percentil~99, anda entre 31 e 49~ms.
 
 \begin{figure}[!tb]
 \centering
@@ -432,29 +432,29 @@ de 60~s e intervalo de confiança de 95\%. Atrasos em ms e débito em Mbit/s.}
 \cmidrule{2-4}
 Configuração & IPTD p95 & IPDV & IPLR & IPLR & Débito \\
 \midrule
-Sem QoS & 108,8 $\pm$ 0,5 & 5,61 & 0,52\% & 0,35\% & 5,66 $\pm$ 0,04 \\
-Agendamento & 5,3 $\pm$ 0,1 & 0,08 & 0\% & 0\% & 5,49 $\pm$ 0,17 \\
-Agendamento + policiamento & 5,4 $\pm$ 0,1 & 0,10 & 0\% & 0\% & 5,37 $\pm$ 0,18 \\
-Cadeia completa & 5,4 $\pm$ 0,1 & 0,09 & 0\% & 0\% & 5,43 $\pm$ 0,08 \\
+Sem QoS & 108,5 $\pm$ 0,2 & 5,55 & 0,33\% & 0,40\% & 5,60 $\pm$ 0,01 \\
+Agendamento & 5,5 $\pm$ 0,3 & 0,13 & 0\% & 0\% & 5,58 $\pm$ 0,01 \\
+Agendamento + policiamento & 5,7 $\pm$ 0,3 & 0,17 & 0\% & 0\% & 5,58 $\pm$ 0,01 \\
+Cadeia completa & 5,4 $\pm$ 0,1 & 0,11 & 0\% & 0\% & 5,58 $\pm$ 0,01 \\
 \bottomrule
 \end{tabular*}
 \end{table}
 
 Com classificação e agendamento, o VoIP e o vídeo ficam isolados da carga. O atraso do
-VoIP mantém-se em 5,3~ms, que é o atraso do núcleo, tanto com um fluxo TCP como com
-oito; a amplitude do atraso fica abaixo de 0,5~ms e não há perdas em VoIP nem em
-vídeo em nenhuma das corridas. O TCP continua a usar a capacidade que sobra: com a
-cadeia completa obtém 5,43~Mbit/s, menos 4\% do que sem QoS. A diferença não vem do
-tráfego prioritário, que ocupa o mesmo nos dois casos, mas da fila própria da classe
-BE, onde o atraso sentido pelo TCP duplica: com filas de 50~pacotes, o TCP obtém o
-mesmo débito que sem QoS (Secção~\ref{sec:otim}).
+VoIP mantém-se em cerca de 5,5~ms, pouco mais do que o atraso do núcleo, tanto com um
+fluxo TCP como com oito; a amplitude do atraso fica abaixo de 1~ms e não há perdas em
+VoIP nem em vídeo em nenhuma das corridas. O TCP continua a usar toda a capacidade que
+sobra: com a cadeia completa obtém 5,58~Mbit/s, contra 5,60 sem QoS, e a diferença
+(0,3\%) é o tráfego de VoIP e de vídeo que deixou de se perder. O custo para a classe
+BE está no atraso e não no débito: a sua fila passa a ser servida só com a capacidade
+que sobra, e o atraso medido pela sonda sobe de 109 para 198~ms (p95).
 
 \subsection{Fonte de vídeo fora do perfil}
 
 Neste cenário, a fonte de vídeo envia mais do que os 5~Mbit/s contratados
 (Fig.~\ref{fig:policing}). Sem QoS, quem envia mais fica com mais: a 12~Mbit/s, o
-vídeo ocupa 9,8~Mbit/s, o TCP fica reduzido a 0,34~Mbit/s e o VoIP perde 52\% dos
-pacotes. É a falta de equidade de uma fila única perante uma fonte que não reage ao
+vídeo ocupa 9,8~Mbit/s, o TCP fica praticamente sem débito (0,02~Mbit/s) e o VoIP
+perde 38\% dos pacotes. É a falta de equidade de uma fila única perante uma fonte que não reage ao
 congestionamento.
 
 \begin{figure}[!tb]
@@ -468,15 +468,15 @@ Os três perfis com QoS mostram que o policiamento e o agendamento se completam:
 
 \begin{itemize}
 \item \textbf{Só policiamento.} O vídeo é limitado a 5,0~Mbit/s e o TCP mantém
-4,8~Mbit/s, mas a fila continua a ser única: o atraso do VoIP continua em 107~ms e a
-sua variação (IPDV) entre 4,7 e 5,4~ms, da mesma ordem que sem QoS, contra menos de
+4,6~Mbit/s, mas a fila continua a ser única: o atraso do VoIP continua em 107~ms e a
+sua variação (IPDV) entre 4,6 e 5,5~ms, da mesma ordem que sem QoS, contra cerca de
 0,1~ms com agendamento. O policiamento garante equidade, não garante atraso nem \emph{jitter}.
-\item \textbf{Só agendamento.} O VoIP fica protegido (5,3~ms, sem perdas). O vídeo
+\item \textbf{Só agendamento.} O VoIP fica protegido (5,5~ms, sem perdas). O vídeo
 obtém 5,85~Mbit/s, porque a classe AF31 tem prioridade sobre BE na capacidade que
 sobra, e o TCP fica nos 3,8~Mbit/s garantidos. Mas a fila de AF31 está sempre cheia,
 e o próprio vídeo passa a ter 176~ms de atraso.
 \item \textbf{Os dois.} O excesso é descartado à entrada, antes de chegar à fila. O
-vídeo que passa (5,0~Mbit/s) tem 6~ms de atraso, e o TCP sobe para 4,4 a 4,5~Mbit/s.
+vídeo que passa (5,0~Mbit/s) tem 6~ms de atraso, e o TCP sobe para 4,6~Mbit/s.
 \end{itemize}
 
 O compromisso é o que o enunciado sugere: o policiamento reduz o débito de quem
@@ -487,11 +487,13 @@ troca, protege os outros fluxos e mantém baixo o atraso do tráfego conforme.
 
 A Fig.~\ref{fig:flood} mostra o efeito de tráfego UDP enviado por \texttt{h\_x}, que
 não é um cliente autorizado. Sem QoS, 12~Mbit/s desse tráfego bastam para o VoIP
-perder 61\% dos pacotes, o vídeo 58\% e o TCP ficar com 0,29~Mbit/s. O agendamento,
+perder em média 62\% dos pacotes, o vídeo 38\% e o TCP ficar sem débito
+(0,01~Mbit/s); de corrida para corrida, as perdas do VoIP variam entre 36\% e 87\%,
+consoante a fase em que os pacotes chegam à fila cheia. O agendamento,
 sozinho, protege o VoIP e o vídeo, mas não o TCP: o tráfego de \texttt{h\_x} é
 classificado como \emph{best effort} e compete com o TCP na mesma classe, onde ganha
 por não reagir às perdas. Só com a firewall, que o descarta na VNF2, o débito TCP se
-mantém em 5,5~Mbit/s, qualquer que seja o débito do ataque.
+mantém em 5,6~Mbit/s, qualquer que seja o débito do ataque.
 
 \begin{figure}[!tb]
 \centering
@@ -508,7 +510,7 @@ modelo para os 65~ms de atraso boca-ouvido. Sem QoS há dois regimes. Só com ca
 TCP, o MOS desce pouco (4,2 a 4,3 no cenário de carga crescente), porque o modelo~E
 só penaliza fortemente o atraso acima de 177~ms e as perdas são da ordem de 1\%.
 Quando o tráfego UDP excede a capacidade, as perdas dominam e a chamada deixa de ser
-utilizável: o MOS é 1,5 com o vídeo a 12~Mbit/s e 1,3 com 12~Mbit/s de tráfego não
+utilizável: o MOS é 1,8 com o vídeo a 12~Mbit/s e 1,4 com 12~Mbit/s de tráfego não
 autorizado.
 
 \begin{figure}[!tb]
@@ -524,7 +526,7 @@ perfil e com tráfego não autorizado.}
 Os mecanismos de QoS estão no acesso; estes cenários mostram o que eles conseguem, e
 não conseguem, quando o problema está no núcleo (Tabela~\ref{tab:nucleo}). O atraso
 do núcleo soma-se sempre, mas sem QoS soma-se ao atraso da fila: com 100~ms no
-núcleo, o VoIP tem 100~ms com a cadeia e 202~ms sem ela, já acima do limiar a partir
+núcleo, o VoIP tem 100~ms com a cadeia e 203~ms sem ela, já acima do limiar a partir
 do qual o modelo~E penaliza a conversação. As perdas do núcleo acontecem depois da
 cadeia e afetam as duas configurações por igual; nenhum mecanismo no acesso as pode
 corrigir.
@@ -541,8 +543,8 @@ corrigir.
 \cmidrule{2-5}\cmidrule{6-9}
 Configuração & 5~ms & 25~ms & 50~ms & 100~ms & 0\% & 0,5\% & 1\% & 2\% \\
 \midrule
-Sem QoS & 108,3 & 127,9 & 152,8 & 201,6 & 0,35 & 0,79 & 1,06 & 1,90 \\
-Cadeia completa & 5,5 & 25,5 & 50,4 & 100,3 & 0,00 & 0,51 & 1,05 & 1,98 \\
+Sem QoS & 108,6 & 127,9 & 152,8 & 202,8 & 0,35 & 0,71 & 1,11 & 2,05 \\
+Cadeia completa & 5,5 & 25,4 & 50,5 & 100,3 & 0,00 & 0,53 & 1,01 & 1,79 \\
 \bottomrule
 \end{tabular*}
 \end{table}
@@ -567,9 +569,9 @@ recupera.
 \subsubsection{Tamanho das filas.}
 A Fig.~\ref{fig:queue} mostra o efeito do tamanho das filas das classes HTB. O atraso
 da classe \emph{best effort} cresce em proporção com a fila, de 44~ms (p95) com
-20~pacotes para 592~ms com 300, e o débito TCP não melhora: é 5,7~Mbit/s com 20 ou
-50~pacotes e 5,3 a 5,4~Mbit/s com 100 ou 300. Filas grandes só acrescentam atraso. No
-outro extremo, com 20~pacotes a sonda \emph{best effort} perde 2,7\% dos pacotes,
+20~pacotes para 592~ms com 300, e o débito TCP não muda: é 5,58~Mbit/s nos quatro
+casos. Filas grandes só acrescentam atraso. No
+outro extremo, com 20~pacotes a sonda \emph{best effort} perde 2,2\% dos pacotes,
 contra menos de 1\% nos outros casos. O melhor compromisso está nos 50~pacotes. O
 VoIP não depende deste parâmetro: tem a sua própria fila, que nunca enche.
 
@@ -584,7 +586,7 @@ VoIP não depende deste parâmetro: tem a sua própria fila, que nunca enche.
 No HTB, os débitos garantidos de AF31 e BE funcionam como pesos na partilha do
 gargalo. A Fig.~\ref{fig:weights} mostra três repartições, com o vídeo a 6~Mbit/s.
 Com 3~Mbit/s garantidos a AF31, o vídeo perde 35\% dos pacotes e o TCP fica com
-5,6~Mbit/s. Com 5~Mbit/s, as perdas descem para 2,2\%: a classe ainda recebe o que
+5,7~Mbit/s. Com 5~Mbit/s, as perdas descem para 2,2\%: a classe ainda recebe o que
 sobra de EF, mas não chega para os 6~Mbit/s. Com 7~Mbit/s não há perdas e o atraso do
 vídeo desce de 176~ms para 5~ms, à custa do TCP, que fica com 3,6~Mbit/s. A regra que
 daqui resulta é simples: o débito garantido de uma classe deve cobrir o perfil
@@ -624,8 +626,8 @@ rajadas de 20~kB (perfil \texttt{police}).}
 
 Para medir o custo da virtualização, retirou-se o limite de 10~Mbit/s e o atraso do
 núcleo e comparou-se a cadeia com o encaminhamento direto, sem VNFs
-(Fig.~\ref{fig:overhead}). Um fluxo TCP atinge 8,7~Gbit/s em encaminhamento direto,
-3,1~Gbit/s através da cadeia em modo de passagem e 2,8~Gbit/s com a cadeia completa.
+(Fig.~\ref{fig:overhead}). Um fluxo TCP atinge 9,2~Gbit/s em encaminhamento direto,
+3,6~Gbit/s através da cadeia em modo de passagem e 3,3~Gbit/s com a cadeia completa.
 A maior parte do custo vem, portanto, de atravessar mais quatro nós; as regras de QoS
 propriamente ditas custam cerca de 9\%. No atraso, com carga, a cadeia acrescenta
 0,03 a 0,04~ms. Sem carga, os atrasos medidos são maiores (cerca de 0,5~ms) e a
@@ -640,7 +642,7 @@ em repouso, demora a acordar para tratar cada pacote.
 \end{figure}
 
 Os valores absolutos dependem da máquina; para um acesso de 10~Mbit/s, a cadeia tem
-capacidade 280~vezes superior à necessária.
+capacidade mais de 300~vezes superior à necessária.
 
 \section{Discussão}
 \label{sec:disc}
@@ -657,8 +659,8 @@ acesso} protege a classe \emph{best effort}, que os outros mecanismos deixam exp
 A \emph{monitorização} não altera o tráfego, mas foi o que permitiu verificar cada
 um destes efeitos e detetar erros de configuração durante o desenvolvimento.
 
-Os compromissos medidos são os clássicos do DiffServ. Separar as classes custa
-ao TCP 4\% do débito, com as filas de referência. Policiar custa perdas a quem excede o contrato. Aumentar o
+Os compromissos medidos são os clássicos do DiffServ. Separar as classes não custa
+débito ao TCP, mas quase duplica o atraso da classe BE. Policiar custa perdas a quem excede o contrato. Aumentar o
 débito garantido de uma classe retira-o às outras. Aumentar as filas troca perdas por
 atraso. Em nenhum caso há ganho sem custo; o que os mecanismos fazem é escolher quem
 paga, e essa escolha passa a estar num ficheiro de configuração.
@@ -711,9 +713,9 @@ que as partilhem, e a cadeia só trata o sentido dos clientes para os servidores
 Implementou-se uma cadeia de quatro VNFs que cobre os cinco aspetos de QoS do
 enunciado e avaliou-se com uma campanha automática e reprodutível de 420~corridas. Num gargalo de 10~Mbit/s com
 tráfego TCP concorrente, a cadeia reduz o atraso do VoIP de 109~ms para 5~ms e
-elimina as perdas em VoIP e vídeo, com um custo de 4\% no débito TCP. Perante uma
+elimina as perdas em VoIP e vídeo, sem reduzir o débito TCP. Perante uma
 fonte de vídeo ou tráfego não autorizado a 12~Mbit/s, o MOS do VoIP mantém-se em
-4,4, quando sem QoS desce para 1,5 e 1,3.
+4,4, quando sem QoS desce para 1,8 e 1,4.
 
 A principal lição é que os mecanismos se completam: o agendamento garante o atraso,
 o policiamento a equidade e o controlo de acesso protege a classe sem garantias. A

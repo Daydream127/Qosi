@@ -34,7 +34,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 from qosnet import ROOT, QosNet, load_config  # noqa: E402
 from flows import (BE_PROBE, FLOOD_PORT, VIDEO, VOIP, UdpFlow,  # noqa: E402
-                   tcp_with_udp, udp_window_end)
+                   stop_traffic, tcp_with_udp, udp_window_end)
 from mininet.log import setLogLevel  # noqa: E402
 
 SETS = {"smoke": {"duration": 5, "reps": 1},     # só para testar a própria campanha
@@ -123,8 +123,9 @@ def run_point(qos, spec, duration, packets_path):
     if spec["chain"] == "default":
         qos.apply_profile(spec["profile"], spec["overrides"])
     qos.set_core(**spec["core"])
-    for host in list(qos.config["clients"]) + list(qos.config["servers"]):
-        qos[host].cmd("pkill udpgen; pkill -f 'iperf3 -c'; rm -f /tmp/udp-* /tmp/tcp-*")
+    waited = stop_traffic(qos, list(qos.config["clients"]) + list(qos.config["servers"]))
+    if waited > 1:
+        print(f"  {waited} s à espera de ligações TCP da corrida anterior", flush=True)
 
     flows = {}
     tcp = None
