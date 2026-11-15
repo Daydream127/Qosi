@@ -415,7 +415,7 @@ do atraso, medida entre o mínimo e o percentil~99, anda entre 31 e 49~ms.
 
 \begin{figure}[!tb]
 \centering
-\includegraphics[width=\textwidth]{load.pdf}
+\includegraphics[width=0.9\textwidth]{load.pdf}
 \caption{Carga crescente: VoIP, vídeo e TCP em função do número de fluxos TCP.}
 \label{fig:load}
 \end{figure}
@@ -459,7 +459,7 @@ congestionamento.
 
 \begin{figure}[!tb]
 \centering
-\includegraphics[width=\textwidth]{policing.pdf}
+\includegraphics[width=0.9\textwidth]{policing.pdf}
 \caption{Fonte de vídeo que excede o perfil contratado de 5~Mbit/s.}
 \label{fig:policing}
 \end{figure}
@@ -497,7 +497,7 @@ mantém em 5,6~Mbit/s, qualquer que seja o débito do ataque.
 
 \begin{figure}[!tb]
 \centering
-\includegraphics[width=\textwidth]{flood.pdf}
+\includegraphics[width=0.9\textwidth]{flood.pdf}
 \caption{Tráfego UDP não autorizado, enviado por h\_x.}
 \label{fig:flood}
 \end{figure}
@@ -558,7 +558,7 @@ recupera.
 
 \begin{figure}[!tb]
 \centering
-\includegraphics[width=\textwidth]{outage.pdf}
+\includegraphics[width=0.92\textwidth]{outage.pdf}
 \caption{Atraso do VoIP ao longo de uma corrida com uma falha de 3~s na ligação ao núcleo.}
 \label{fig:outage}
 \end{figure}
@@ -577,7 +577,7 @@ VoIP não depende deste parâmetro: tem a sua própria fila, que nunca enche.
 
 \begin{figure}[!tb]
 \centering
-\includegraphics[width=\textwidth]{queue.pdf}
+\includegraphics[width=0.92\textwidth]{queue.pdf}
 \caption{Otimização: tamanho das filas das classes (perfil \texttt{sched}).}
 \label{fig:queue}
 \end{figure}
@@ -595,7 +595,7 @@ que faz a configuração de referência (5~Mbit/s nos dois).
 
 \begin{figure}[!tb]
 \centering
-\includegraphics[width=\textwidth]{weights.pdf}
+\includegraphics[width=0.92\textwidth]{weights.pdf}
 \caption{Otimização: débitos garantidos de AF31 e BE, com vídeo a 6~Mbit/s (perfil
 \texttt{sched}).}
 \label{fig:weights}
@@ -616,7 +616,7 @@ AF31, e o atraso do vídeo sobe de 5~ms para 31~ms (p95).
 
 \begin{figure}[!tb]
 \centering
-\includegraphics[width=\textwidth]{bucket.pdf}
+\includegraphics[width=0.92\textwidth]{bucket.pdf}
 \caption{Otimização: tamanho do balde do policiador de AF31, com vídeo de 4~Mbit/s em
 rajadas de 20~kB (perfil \texttt{police}).}
 \label{fig:bucket}
@@ -636,7 +636,7 @@ em repouso, demora a acordar para tratar cada pacote.
 
 \begin{figure}[!tb]
 \centering
-\includegraphics[width=\textwidth]{overhead.pdf}
+\includegraphics[width=0.92\textwidth]{overhead.pdf}
 \caption{Sobrecarga da cadeia, sem gargalo: atraso do VoIP e débito de um fluxo TCP.}
 \label{fig:overhead}
 \end{figure}
@@ -725,6 +725,11 @@ virtualização custa dois terços do débito máximo, um preço irrelevante no 
 
 Como trabalho futuro, propõe-se uma plataforma de orquestração que vigie e escale
 as VNFs, gestão ativa de filas na classe \emph{best effort} e tráfego real.
+
+\subsubsection*{Contribuições e vídeo.}
+Todas as partes do trabalho foram feitas em conjunto pelos três elementos, em sessões
+de trabalho comuns, pelo que a contribuição é igual: um terço para cada um. O vídeo de
+demonstração está no repositório, em \texttt{docs/video/demonstracao.mp4}.
 
 \begin{thebibliography}{[14}
 \makeatletter\renewcommand\@biblabel[1]{[#1]}\makeatother  % etiquetas [n], como no estilo IEEE

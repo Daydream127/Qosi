@@ -120,6 +120,7 @@ Há dois conjuntos: `quick` (corridas de 15 s, 2 repetições, cerca de uma hora
 | `docs/progresso/` | Relatório de progresso (Etapa 2), em LaTeX |
 | `docs/relatorio/` | Relatório final (Etapa 3), em LaTeX |
 | `docs/guia-demonstracao.md` | Guia para explicar e demonstrar o trabalho |
+| `docs/video/demonstracao.mp4` | Vídeo de demonstração (cerca de 7 minutos) |
 
 ## Autores
 
