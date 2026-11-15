@@ -5,7 +5,7 @@ PROFILE ?= full
 
 SET ?= quick
 
-.PHONY: images smoke test run demomonitoring monitoring-stop clean proposta progresso relatorio experiments plots
+.PHONY: images smoke test run demo monitoring monitoring-stop clean proposta progresso relatorio experiments plots
 
 images: ; bash scripts/build-images.sh
 smoke: images ; $(PY) tests/smoke_test.py
